@@ -42,7 +42,8 @@ INTEGER(KIND=4) :: nD, ii, jj, kk, kki, kkj, max_nb_box, kkp, dimID_mstat, dimID
 &                  fidBED, dimID_lon, dimID_lat, mlondim, mlatdim, lon_ID, lat_ID, bedrock_topography_ID, fidISF,    &
 &                  isfmask_ID, fidDFT, ice_base_topography_ID, dimID_Nisf, err_melt_isf_ID, melt_isf_ID, fidCMIPbot, &
 &                  IF_mask_ID, GL_mask_ID, s_er_4_ID, s_an_4_ID, t_er_4_ID, t_an_4_ID, s_er_5_ID, s_an_5_ID,         &
-&                  t_er_5_ID, t_an_5_ID, fidSHMIDTKO, s_anom_5_ID, t_anom_5_ID, s_anom_4_ID, t_anom_4_ID !, Ccoef_ID
+&                  t_er_5_ID, t_an_5_ID, fidSHMIDTKO, s_anom_5_ID, t_anom_5_ID, s_anom_4_ID, t_anom_4_ID,            &
+&                  min_melt_pres_ID, max_melt_pres_ID  !, Ccoef_ID
 
 INTEGER(KIND=4),ALLOCATABLE,DIMENSION(:) :: kstat, imin, imax, jmin, jmax
 
@@ -60,7 +61,7 @@ REAL(KIND=4),ALLOCATABLE,DIMENSION(:) :: lon, lat, err_melt_isf, melt_isf, front
 REAL(KIND=4),ALLOCATABLE,DIMENSION(:,:) :: bedrock_topography, ice_base_topography, s_er_3, s_an_3, t_er_3, t_an_3,  &
 &                                          s_er_2, s_an_2, t_er_2, t_an_2, s_er_1, s_an_1, t_er_1, t_an_1, Kcoef,    &
 &                                          total_melt_pres, mean_melt_pres, total_melt_futu, mean_melt_futu,         &
-&                                          s_anom_5, t_anom_5, s_anom_4, t_anom_4 !, Ccoef
+&                                          s_anom_5, t_anom_5, s_anom_4, t_anom_4, min_melt_pres, max_melt_pres !, Ccoef
 
 REAL(KIND=4), DIMENSION(:,:,:), ALLOCATABLE :: Pmelt_out, Fmelt_out, s_anom_3, t_anom_3, s_anom_2, t_anom_2,         &
 &                                              s_anom_1, t_anom_1
@@ -75,7 +76,7 @@ REAL(KIND=8) ::  zzz, T0, S0, Tf, lbd1, lbd2, lbd3, meltfac, K, gT, alphap, wn, 
 &               GTS0_LAZER, gammaT_PICO_SI, C_PICO_SI, alpha_PICO, beta_PICO, rhostar_SI_PICO, snt, angle1, angle2,  &
 &               gammaT, facPDC, gammaT_PICO, C_PICO, rhostar_PICO, dist, lonGLmin, latGLmin, zGLmin, sn, distmp,     &
 &               zGLtmp, RT, deg2rad,  aainf, aasup, target_melt, mmm_tot_p, mmm_avg_p, mmm_tot_f, mmm_avg_f, aaa,    &
-&               alpha_LAZER, beta_LAZER
+&               alpha_LAZER, beta_LAZER, mmm_min_p, mmm_max_p
 
 REAL(KIND=8), DIMENSION(12) :: pp
 
@@ -495,6 +496,7 @@ mtot=nn_TS_pres*mNmod*nn_tuning*nn_para
 ALLOCATE( T_pres(mdepth), S_pres(mdepth), T_futu(mdepth), S_futu(mdepth) )
 ALLOCATE( total_melt_pres(mNisf,mtot), mean_melt_pres(mNisf,mtot) )
 ALLOCATE( total_melt_futu(mNisf,mtot), mean_melt_futu(mNisf,mtot) )
+ALLOCATE( min_melt_pres(mNisf,mtot), max_melt_pres(mNisf,mtot) )
 ALLOCATE( Kcoef(mNisf,mtot) ) !, Ccoef(mNisf,mtot) )
 ALLOCATE( kstat(mNisf) )
 ALLOCATE( index_para(mNisf,mtot), index_CMIP(mNisf,mtot), index_WOA(mNisf,mtot), index_tun(mNisf,mtot) )
@@ -506,6 +508,8 @@ total_melt_pres(:,:) = NF90_FILL_FLOAT
 total_melt_futu(:,:) = NF90_FILL_FLOAT
 mean_melt_pres(:,:)  = NF90_FILL_FLOAT
 mean_melt_futu(:,:)  = NF90_FILL_FLOAT
+min_melt_pres(:,:)   = NF90_FILL_FLOAT
+max_melt_pres(:,:)   = NF90_FILL_FLOAT
 Kcoef(:,:)  = NF90_FILL_FLOAT
 !Ccoef(:,:)  = NF90_FILL_FLOAT
 index_para(:,:) = 0
@@ -1208,6 +1212,7 @@ DO kisf=2,mNisf
                  Melt(:,:) = 0.d0
                  mmm_tot_p = 0.d0
                  mmm_avg_p = 0.d0
+                 mmm_min_p = NF90_FILL_DOUBLE
                  do ii=1,mlondim
                  do jj=1,mlatdim
                    if     ( kk_para .eq. 1 .or. kk_para .eq. 2 ) then
@@ -1236,11 +1241,12 @@ DO kisf=2,mNisf
                    endif
                  enddo
                  enddo
-                 ! average melt rate (in m.w.e/yr) :
-                 mmm_avg_p = mmm_tot_p / mmm_avg_p
                  !
                  IF ( ABS( ( mmm_tot_p - target_melt ) / target_melt ) .LT. 1.d-2 ) THEN ! This gT value is satisfactory
-                   EXIT
+                  mmm_avg_p = mmm_tot_p / mmm_avg_p ! average melt rate (in m.w.e/yr)
+                  mmm_min_p = MINVAL( -Melt )       ! minimum melt rate in m/yr (meters of ice per year) 
+                  mmm_max_p = MAXVAL( -Melt )       ! maximum melt rate in m/yr (meters of ice per year) 
+                  EXIT
                  ELSEIF ( NINT(SIGN(1.d0,target_melt)) .NE. NINT(SIGN(1.d0,mmm_tot_p)) .OR. stun .eq. Ntun ) THEN ! no possibility of tunning gT to get the correct melt rate
                    gT = -99999.99
                    EXIT
@@ -1330,6 +1336,8 @@ DO kisf=2,mNisf
                     total_melt_futu(kisf,kstat(kisf)) = mmm_tot_f
                     mean_melt_pres (kisf,kstat(kisf)) = mmm_avg_p
                     mean_melt_futu (kisf,kstat(kisf)) = mmm_avg_f
+                    min_melt_pres  (kisf,kstat(kisf)) = mmm_min_p
+                    max_melt_pres  (kisf,kstat(kisf)) = mmm_max_p
                     Kcoef          (kisf,kstat(kisf)) = gT
                   endif
   
@@ -1393,10 +1401,11 @@ DO kisf=2,mNisf
                  endif
                enddo
                enddo
-               ! average melt rate (in m.w.e/yr) :
-               mmm_avg_p = mmm_tot_p / mmm_avg_p
                !
                IF ( ABS( ( mmm_tot_p - target_melt ) / target_melt ) .LT. 1.d-2 ) THEN ! This gT value is satisfactory
+                 mmm_avg_p = mmm_tot_p / mmm_avg_p ! average melt rate (in m.w.e/yr)
+                 mmm_min_p = MINVAL( -Melt )       ! minimum melt rate in m/yr (meters of ice per year) 
+                 mmm_max_p = MAXVAL( -Melt )       ! maximum melt rate in m/yr (meters of ice per year) 
                  EXIT
                ELSEIF ( NINT(SIGN(1.d0,target_melt)) .NE. NINT(SIGN(1.d0,mmm_tot_p)) .OR. stun .eq. Ntun ) THEN ! no possibility of tunning gT to get the correct melt rate
                  gT = -99999.99
@@ -1504,6 +1513,8 @@ DO kisf=2,mNisf
                   total_melt_futu(kisf,kstat(kisf)) = mmm_tot_f
                   mean_melt_pres (kisf,kstat(kisf)) = mmm_avg_p
                   mean_melt_futu (kisf,kstat(kisf)) = mmm_avg_f
+                  min_melt_pres  (kisf,kstat(kisf)) = mmm_min_p
+                  max_melt_pres  (kisf,kstat(kisf)) = mmm_max_p
                   Kcoef          (kisf,kstat(kisf)) = gT
                 endif
 
@@ -1577,10 +1588,11 @@ DO kisf=2,mNisf
                   endif
                 enddo
                 enddo
-                ! average melt rate (in m.w.e/yr) :
-                mmm_avg_p = mmm_tot_p / mmm_avg_p
                 !
                 IF ( ABS( ( mmm_tot_p - target_melt ) / target_melt ) .LT. 1.d-2 ) THEN ! This gT value is satisfactory
+                  mmm_avg_p = mmm_tot_p / mmm_avg_p ! average melt rate (in m.w.e/yr)
+                  mmm_min_p = MINVAL( -Melt )       ! minimum melt rate in m/yr (meters of ice per year) 
+                  mmm_max_p = MAXVAL( -Melt )       ! maximum melt rate in m/yr (meters of ice per year) 
                   EXIT
                 ELSEIF ( NINT(SIGN(1.d0,target_melt)) .NE. NINT(SIGN(1.d0,mmm_tot_p)) .OR. stun .eq. Ntun ) THEN ! no possibility of tunning gT to get the correct melt rate
                   gT = -99999.99
@@ -1690,6 +1702,8 @@ DO kisf=2,mNisf
                   total_melt_futu(kisf,kstat(kisf)) = mmm_tot_f
                   mean_melt_pres (kisf,kstat(kisf)) = mmm_avg_p
                   mean_melt_futu (kisf,kstat(kisf)) = mmm_avg_f
+                  min_melt_pres  (kisf,kstat(kisf)) = mmm_min_p
+                  max_melt_pres  (kisf,kstat(kisf)) = mmm_max_p
                   Kcoef          (kisf,kstat(kisf)) = gT
                   !Ccoef          (kisf,kstat(kisf)) = CC
                 endif
@@ -1789,10 +1803,10 @@ DO kisf=2,mNisf
                   Sbox(kk) = Sbox(kk) / Abox(kk,nD)
                 ENDDO
                 !  
-                ! average melt rate (in m.w.e/yr) :
-                mmm_avg_p = mmm_tot_p / mmm_avg_p
-                !
                 IF ( ABS( ( mmm_tot_p - target_melt ) / target_melt ) .LT. 1.d-2 ) THEN ! This gT value is satisfactory
+                  mmm_avg_p = mmm_tot_p / mmm_avg_p ! average melt rate (in m.w.e/yr)
+                  mmm_min_p = MINVAL( -Melt )       ! minimum melt rate in m/yr (meters of ice per year) 
+                  mmm_max_p = MAXVAL( -Melt )       ! maximum melt rate in m/yr (meters of ice per year) 
                   EXIT
                 ELSEIF ( NINT(SIGN(1.d0,target_melt)) .NE. NINT(SIGN(1.d0,mmm_tot_p)) .OR. stun .eq. Ntun ) THEN ! no possibility of tunning gT to get the correct melt rate
                   gT = -99999.99
@@ -1932,6 +1946,8 @@ DO kisf=2,mNisf
                   total_melt_futu(kisf,kstat(kisf)) = mmm_tot_f
                   mean_melt_pres (kisf,kstat(kisf)) = mmm_avg_p
                   mean_melt_futu (kisf,kstat(kisf)) = mmm_avg_f
+                  min_melt_pres  (kisf,kstat(kisf)) = mmm_min_p
+                  max_melt_pres  (kisf,kstat(kisf)) = mmm_max_p
                   Kcoef          (kisf,kstat(kisf)) = gT
                   !Ccoef          (kisf,kstat(kisf)) = CC
                 endif
@@ -1994,10 +2010,11 @@ DO kisf=2,mNisf
                   endif
                 enddo
                 enddo
-                ! average melt rate (in m.w.e/yr) :
-                mmm_avg_p = mmm_tot_p / mmm_avg_p
                 !
                 IF ( ABS( ( mmm_tot_p - target_melt ) / target_melt ) .LT. 1.d-2 ) THEN ! This gT value is satisfactory
+                  mmm_avg_p = mmm_tot_p / mmm_avg_p ! average melt rate (in m.w.e/yr)
+                  mmm_min_p = MINVAL( -Melt )       ! minimum melt rate in m/yr (meters of ice per year) 
+                  mmm_max_p = MAXVAL( -Melt )       ! maximum melt rate in m/yr (meters of ice per year) 
                   EXIT
                 !ELSEIF ( NINT(SIGN(1.d0,target_melt)) .NE. NINT(SIGN(1.d0,mmm_tot_p)) .OR. stun .eq. Ntun ) THEN ! no possibility of tunning K to get the correct melt rate
                 ELSEIF ( stun .eq. Ntun ) THEN ! no possibility of tunning K to get the correct melt rate
@@ -2101,6 +2118,8 @@ DO kisf=2,mNisf
                   total_melt_futu(kisf,kstat(kisf)) = mmm_tot_f
                   mean_melt_pres (kisf,kstat(kisf)) = mmm_avg_p
                   mean_melt_futu (kisf,kstat(kisf)) = mmm_avg_f
+                  min_melt_pres  (kisf,kstat(kisf)) = mmm_min_p
+                  max_melt_pres  (kisf,kstat(kisf)) = mmm_max_p
                   Kcoef          (kisf,kstat(kisf)) = GamT
                 endif ! if ( K .gt. 0.d0 )
 
@@ -2154,10 +2173,11 @@ DO kisf=2,mNisf
                   endif
                 enddo
                 enddo
-                ! average melt rate (in m.w.e/yr) :
-                mmm_avg_p = mmm_tot_p / mmm_avg_p
                 !
                 IF ( ABS( ( mmm_tot_p - target_melt ) / target_melt ) .LT. 1.d-2 ) THEN ! This gT value is satisfactory
+                  mmm_avg_p = mmm_tot_p / mmm_avg_p ! average melt rate (in m.w.e/yr)
+                  mmm_min_p = MINVAL( -Melt )       ! minimum melt rate in m/yr (meters of ice per year) 
+                  mmm_max_p = MAXVAL( -Melt )       ! maximum melt rate in m/yr (meters of ice per year) 
                   EXIT
                 !ELSEIF ( NINT(SIGN(1.d0,target_melt)) .NE. NINT(SIGN(1.d0,mmm_tot_p)) .OR. stun .eq. Ntun ) THEN ! no possibility of tunning K to get the correct melt rate
                 ELSEIF ( stun .eq. Ntun ) THEN ! no possibility of tunning K to get the correct melt rate
@@ -2255,6 +2275,8 @@ DO kisf=2,mNisf
                   total_melt_futu(kisf,kstat(kisf)) = mmm_tot_f
                   mean_melt_pres (kisf,kstat(kisf)) = mmm_avg_p
                   mean_melt_futu (kisf,kstat(kisf)) = mmm_avg_f
+                  min_melt_pres  (kisf,kstat(kisf)) = mmm_min_p
+                  max_melt_pres  (kisf,kstat(kisf)) = mmm_max_p
                   Kcoef          (kisf,kstat(kisf)) = GefT
                 endif ! if ( K .gt. 0.d0 )
 
@@ -2343,6 +2365,10 @@ DO kisf=2,mNisf
    call erreur(status,.TRUE.,"def_var_total_melt_futu_ID")
    status = NF90_DEF_VAR(fidM,"mean_melt_futu",NF90_FLOAT,(/dimID_Nisf,dimID_mstat/),mean_melt_futu_ID)
    call erreur(status,.TRUE.,"def_var_mean_melt_futu_ID")
+   status = NF90_DEF_VAR(fidM,"min_melt_pres",NF90_FLOAT,(/dimID_Nisf,dimID_mstat/),min_melt_pres_ID)
+   call erreur(status,.TRUE.,"def_var_min_melt_pres_ID")
+   status = NF90_DEF_VAR(fidM,"max_melt_pres",NF90_FLOAT,(/dimID_Nisf,dimID_mstat/),max_melt_pres_ID)
+   call erreur(status,.TRUE.,"def_var_max_melt_pres_ID")
    status = NF90_DEF_VAR(fidM,"Kcoef",NF90_FLOAT,(/dimID_Nisf,dimID_mstat/),Kcoef_ID)
    call erreur(status,.TRUE.,"def_var_Kcoef_ID")
    !status = NF90_DEF_VAR(fidM,"Ccoef",NF90_FLOAT,(/dimID_Nisf,dimID_mstat/),Ccoef_ID)
@@ -2424,6 +2450,22 @@ DO kisf=2,mNisf
    call erreur(status,.TRUE.,"put_att_mean_melt_futu_ID")
    status = NF90_PUT_ATT(fidM,mean_melt_futu_ID,"title","Future Melt Rate")
    call erreur(status,.TRUE.,"put_att_mean_melt_futu_ID")
+   status = NF90_PUT_ATT(fidM,min_melt_pres_ID,"units","m/yr")
+   call erreur(status,.TRUE.,"put_att_min_melt_pres_ID")
+   status = NF90_PUT_ATT(fidM,min_melt_pres_ID,"_FillValue",NF90_FILL_FLOAT)
+   call erreur(status,.TRUE.,"put_att_min_melt_pres_ID")
+   status = NF90_PUT_ATT(fidM,min_melt_pres_ID,"long_name","Present minimum melt rate over the cavity")
+   call erreur(status,.TRUE.,"put_att_min_melt_pres_ID")
+   status = NF90_PUT_ATT(fidM,min_melt_pres_ID,"title","Minimum Melt Rate")
+   call erreur(status,.TRUE.,"put_att_min_melt_pres_ID")
+   status = NF90_PUT_ATT(fidM,max_melt_pres_ID,"units","m/yr")
+   call erreur(status,.TRUE.,"put_att_max_melt_pres_ID")
+   status = NF90_PUT_ATT(fidM,max_melt_pres_ID,"_FillValue",NF90_FILL_FLOAT)
+   call erreur(status,.TRUE.,"put_att_max_melt_pres_ID")
+   status = NF90_PUT_ATT(fidM,max_melt_pres_ID,"long_name","Present maximum melt rate over the cavity")
+   call erreur(status,.TRUE.,"put_att_max_melt_pres_ID")
+   status = NF90_PUT_ATT(fidM,max_melt_pres_ID,"title","Maximum Melt Rate")
+   call erreur(status,.TRUE.,"put_att_max_melt_pres_ID")
    status = NF90_PUT_ATT(fidM,Kcoef_ID,"units","TBD")
    call erreur(status,.TRUE.,"put_att_Kcoef_ID")
    status = NF90_PUT_ATT(fidM,Kcoef_ID,"_FillValue",NF90_FILL_FLOAT)
@@ -2481,6 +2523,8 @@ DO kisf=2,mNisf
    status = NF90_PUT_VAR(fidM,mean_melt_pres_ID,mean_melt_pres); call erreur(status,.TRUE.,"var_mean_melt_pres_ID")
    status = NF90_PUT_VAR(fidM,total_melt_futu_ID,total_melt_futu); call erreur(status,.TRUE.,"var_total_melt_futu_ID")
    status = NF90_PUT_VAR(fidM,mean_melt_futu_ID,mean_melt_futu); call erreur(status,.TRUE.,"var_mean_melt_futu_ID")
+   status = NF90_PUT_VAR(fidM,min_melt_pres_ID,min_melt_pres); call erreur(status,.TRUE.,"var_min_melt_pres_ID")
+   status = NF90_PUT_VAR(fidM,max_melt_pres_ID,max_melt_pres); call erreur(status,.TRUE.,"var_max_melt_pres_ID")
    status = NF90_PUT_VAR(fidM,Kcoef_ID,Kcoef); call erreur(status,.TRUE.,"var_Kcoef_ID")
    !status = NF90_PUT_VAR(fidM,Ccoef_ID,Ccoef); call erreur(status,.TRUE.,"var_Ccoef_ID")
    status = NF90_PUT_VAR(fidM,index_para_ID,index_para); call erreur(status,.TRUE.,"var_index_para_ID")
