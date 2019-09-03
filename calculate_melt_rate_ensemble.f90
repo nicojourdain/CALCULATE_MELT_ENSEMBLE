@@ -1363,7 +1363,7 @@ DO kisf=2,mNisf
               gT  =  gammaT
 
               if ( dIFzGLmin .gt. 1.e0 ) then
-                sn = sin( atan( abs(front_ice_dep_avg-zGLmin) / dIFzGLmin ) ) ! sinus of mean cavity slope
+                sn = sin( atan( abs(front_ice_dep_avg(kisf)-zGLmin) / dIFzGLmin ) ) ! sinus of mean cavity slope
               else
                 sn = 0.d0
               endif
@@ -1569,7 +1569,13 @@ DO kisf=2,mNisf
                 Tstar = lbd1*S0 + lbd2 + lbd3*Zbox(1,nD) - T0  !NB: Tstar should be < 0
                 g1 = Abox(1,nD) * gT
                 tmp1 = g1 / (CC*rhostar*(beta*S0*meltfac-alphap))
-                xbox = - 0.5*tmp1 + sqrt( (0.5*tmp1)**2 - tmp1*Tstar )
+                sn = (0.5*tmp1)**2 - tmp1*Tstar
+                ! to avoid negative discriminent (no solution for x otherwise) :
+                if ( sn .lt. 0.d0 ) then
+                  xbox = 0.d0 
+                else
+                  xbox = - 0.5*tmp1 + sqrt(sn) ! standard solution (Reese et al)
+                endif
                 Tbox(1) = T0 - xbox
                 Sbox(1) = S0 - xbox*S0*meltfac
                 qqq = CC*rhostar*(beta*(S0-Sbox(1))-alphap*(T0-Tbox(1)))
@@ -1669,7 +1675,13 @@ DO kisf=2,mNisf
                   Tstar = lbd1*S0 + lbd2 + lbd3*Zbox(1,nD) - T0  !NB: Tstar should be < 0
                   g1 = Abox(1,nD) * gT 
                   tmp1 = g1 / (CC*rhostar*(beta*S0*meltfac-alphap))
-                  xbox = - 0.5*tmp1 + sqrt( (0.5*tmp1)**2 - tmp1*Tstar )
+                  sn = (0.5*tmp1)**2 - tmp1*Tstar
+                  ! to avoid negative discriminent (no solution for x otherwise) :
+                  if ( sn .lt. 0.d0 ) then
+                    xbox = 0.d0 
+                  else
+                    xbox = - 0.5*tmp1 + sqrt(sn) ! standard solution (Reese et al)
+                  endif
                   Tbox(1) = T0 - xbox
                   Sbox(1) = S0 - xbox*S0*meltfac
                   qqq = CC*rhostar*(beta*(S0-Sbox(1))-alphap*(T0-Tbox(1)))
@@ -1776,7 +1788,13 @@ DO kisf=2,mNisf
                     !g1 = gT * aaa
                     g1 = gT * Abox(1,nD)
                     tmp1 = g1 / (CC*rhostar*(beta*S0*meltfac-alphap))
-                    xbox = - 0.5*tmp1 + sqrt( (0.5*tmp1)**2 - tmp1*Tstar )
+                    sn = (0.5*tmp1)**2 - tmp1*Tstar
+                    ! to avoid negative discriminent (no solution for x otherwise) :
+                    if ( sn .lt. 0.d0 ) then
+                      xbox = 0.d0 
+                    else
+                      xbox = - 0.5*tmp1 + sqrt(sn) ! standard solution (Reese et al)
+                    endif
                     TT = T0 - xbox
                     SS = S0 - xbox*S0*meltfac
                     Tbox(1) = Tbox(1) + TT * aaa
@@ -1893,7 +1911,13 @@ DO kisf=2,mNisf
                       !g1 = gT * aaa
                       g1 = gT * Abox(1,nD)
                       tmp1 = g1 / (CC*rhostar*(beta*S0*meltfac-alphap))
-                      xbox = - 0.5*tmp1 + sqrt( (0.5*tmp1)**2 - tmp1*Tstar )
+                      sn = (0.5*tmp1)**2 - tmp1*Tstar
+                      ! to avoid negative discriminent (no solution for x otherwise) :
+                      if ( sn .lt. 0.d0 ) then
+                        xbox = 0.d0 
+                      else
+                        xbox = - 0.5*tmp1 + sqrt(sn) ! standard solution (Reese et al)
+                      endif
                       TT = T0 - xbox
                       SS = S0 - xbox*S0*meltfac
                       Tbox(1) = Tbox(1) + TT * aaa

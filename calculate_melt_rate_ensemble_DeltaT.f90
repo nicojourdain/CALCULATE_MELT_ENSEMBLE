@@ -78,7 +78,7 @@ REAL(KIND=8) ::  zzz, T0c, T0, S0, Tf, lbd1, lbd2, lbd3, meltfac, K, gT, alphap,
 &                gammaT, facPDC, gammaT_PICO, C_PICO, rhostar_PICO, dist, lonGLmin, latGLmin, zGLmin, sn, distmp,    &
 &                zGLtmp, RT, deg2rad,  aainf, aasup, target_melt, mmm_tot_p, mmm_avg_p, mmm_tot_f, mmm_avg_f, aaa,   &
 &                maxDeltaT, ctau, cr1, alpha_LAZER, beta_LAZER, ttt, ttt_SI, m_closest, reldif, DeltaT_closest,      &
-&                mmm_min_p, mmm_max_p
+&                mmm_min_p, mmm_max_p, dIFzGLmin
 
 REAL(KIND=8), DIMENSION(12) :: pp
 
@@ -960,7 +960,7 @@ DO kisf=2,mNisf
               gT  =  gammaT
 
               if ( dIFzGLmin .gt. 1.e0 ) then
-                sn = sin( atan( abs(front_ice_dep_avg-zGLmin) / dIFzGLmin ) ) ! sinus of mean cavity slope
+                sn = sin( atan( abs(front_ice_dep_avg(kisf)-zGLmin) / dIFzGLmin ) ) ! sinus of mean cavity slope
               else
                 sn = 0.d0
               endif
@@ -1214,7 +1214,15 @@ DO kisf=2,mNisf
                 Tstar = lbd1*S0 + lbd2 + lbd3*Zbox(1,nD) - T0c  !NB: Tstar should be < 0
                 g1 = Abox(1,nD) * gT
                 tmp1 = g1 / (CC*rhostar*(beta*S0*meltfac-alphap))
-                xbox = - 0.5*tmp1 + sqrt( max( (0.5*tmp1)**2 - tmp1*Tstar, 0.d0 ))
+                sn = (0.5*tmp1)**2 - tmp1*Tstar
+                ! limit T0c to avoid negative discriminent (no solution for x otherwise) :
+                if ( sn .lt. 0.d0 ) then
+                  DeltaT = lbd1*S0 + lbd2 + lbd3*Zbox(1,nD) - 0.25 * tmp1 - T0 ! best correction giving a solution
+                  T0c = T0 + DeltaT
+                  xbox = 0.d0 
+                else
+                  xbox = - 0.5*tmp1 + sqrt(sn) ! standard solution (Reese et al)
+                endif
                 Tbox(1) = T0c - xbox
                 Sbox(1) = S0 - xbox*S0*meltfac
                 qqq = CC*rhostar*(beta*(S0-Sbox(1))-alphap*(T0c-Tbox(1)))
@@ -1345,7 +1353,15 @@ DO kisf=2,mNisf
                   Tstar = lbd1*S0 + lbd2 + lbd3*Zbox(1,nD) - T0c  !NB: Tstar should be < 0
                   g1 = Abox(1,nD) * gT 
                   tmp1 = g1 / (CC*rhostar*(beta*S0*meltfac-alphap))
-                  xbox = - 0.5*tmp1 + sqrt( max( (0.5*tmp1)**2 - tmp1*Tstar, 0.d0 ))
+                  sn = (0.5*tmp1)**2 - tmp1*Tstar
+                  ! limit T0c to avoid negative discriminent (no solution for x otherwise) :
+                  if ( sn .lt. 0.d0 ) then
+                    DeltaT = lbd1*S0 + lbd2 + lbd3*Zbox(1,nD) - 0.25 * tmp1 - T0 ! best correction giving a solution
+                    T0c = T0 + DeltaT
+                    xbox = 0.d0 
+                  else
+                    xbox = - 0.5*tmp1 + sqrt(sn) ! standard solution (Reese et al)
+                  endif
                   Tbox(1) = T0c - xbox
                   Sbox(1) = S0 - xbox*S0*meltfac
                   qqq = CC*rhostar*(beta*(S0-Sbox(1))-alphap*(T0c-Tbox(1)))
@@ -1451,10 +1467,10 @@ DO kisf=2,mNisf
                 mmm_avg_p = 0.d0
                 Tbox(:)=0.d0 ; Sbox(:)=0.d0 ; qqq=0.d0
                 !- Temerature and salinity in Box #1 :
-                T0c = T0 + DeltaT
                 do ii=1,mlondim
                 do jj=1,mlatdim
                   rr = dGL(ii,jj) / ( dGL(ii,jj) + dIF(ii,jj) )
+                  T0c = T0 + DeltaT
                   if ( isfmask(ii,jj) .eq. kisf .and. rr .le. 1.0-sqrt(1.0*(nD-1)/nD) ) then
                     zzz = -ice_base_topography(ii,jj)
                     aaa = dlon * dlat * dcos(lat(jj)*deg2rad) * RT**2 * deg2rad**2
@@ -1462,7 +1478,15 @@ DO kisf=2,mNisf
                     !g1 = gT * aaa
                     g1 = Abox(1,nD) * gT
                     tmp1 = g1 / (CC*rhostar*(beta*S0*meltfac-alphap))
-                    xbox = - 0.5*tmp1 + sqrt( max( (0.5*tmp1)**2 - tmp1*Tstar, 0.d0 ))
+                    sn = (0.5*tmp1)**2 - tmp1*Tstar
+                    ! limit T0c to avoid negative discriminent (no solution for x otherwise) :
+                    if ( sn .lt. 0.d0 ) then
+                      ! NOT CHANGING DeltaT TO KEEP SAME FOR ALL POINTS:
+                      T0c = lbd1*S0 + lbd2 + lbd3*zzz - 0.25 * tmp1
+                      xbox = 0.d0 
+                    else
+                      xbox = - 0.5*tmp1 + sqrt(sn) ! standard solution (Reese et al)
+                    endif
                     TT = T0c - xbox
                     SS = S0 - xbox*S0*meltfac
                     Tbox(1) = Tbox(1) + TT * aaa
@@ -1599,10 +1623,10 @@ DO kisf=2,mNisf
                   mmm_avg_f = 0.d0
                   Tbox(:)=0.d0 ; Sbox(:)=0.d0 ; qqq=0.d0
                   !- Temerature and salinity in Box #1 :
-                  T0c = T0 + DeltaT
                   do ii=1,mlondim
                   do jj=1,mlatdim
                     rr = dGL(ii,jj) / ( dGL(ii,jj) + dIF(ii,jj) )
+                    T0c = T0 + DeltaT
                     if ( isfmask(ii,jj) .eq. kisf .and. rr .le. 1.0-sqrt(1.0*(nD-1)/nD) ) then
                       zzz = -ice_base_topography(ii,jj)
                       aaa = dlon * dlat * dcos(lat(jj)*deg2rad) * RT**2 * deg2rad**2
@@ -1610,7 +1634,15 @@ DO kisf=2,mNisf
                       !g1 = gT * aaa
                       g1 = Abox(1,nD) * gT
                       tmp1 = g1 / (CC*rhostar*(beta*S0*meltfac-alphap))
-                      xbox = - 0.5*tmp1 + sqrt( max( (0.5*tmp1)**2 - tmp1*Tstar, 0.d0 ))
+                      sn = (0.5*tmp1)**2 - tmp1*Tstar
+                      ! limit T0c to avoid negative discriminent (no solution for x otherwise) :
+                      if ( sn .lt. 0.d0 ) then
+                        ! NOT CHANGING DeltaT TO KEEP SAME FOR ALL POINTS:
+                        T0c = lbd1*S0 + lbd2 + lbd3*zzz - 0.25 * tmp1
+                        xbox = 0.d0 
+                      else
+                        xbox = - 0.5*tmp1 + sqrt(sn) ! standard solution (Reese et al)
+                      endif
                       TT = T0c - xbox
                       SS = S0 - xbox*S0*meltfac
                       Tbox(1) = Tbox(1) + TT * aaa
