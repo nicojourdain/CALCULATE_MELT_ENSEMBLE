@@ -101,7 +101,7 @@ CHARACTER(LEN=10) ::  TypeL
 
 !----------------------------------------------------------------------------------------------------
 
-LOGICAL :: llslp, llnD, ex, ll_curr_undr, ll_prev_undr, ll_curr_over, ll_prev_over
+LOGICAL :: llslp, llnD, ex, ll_curr_undr, ll_prev_undr, ll_curr_over, ll_prev_over, ll_local, ll_quadr
 
 !----------------------------------------------------------------------------------------------------
 
