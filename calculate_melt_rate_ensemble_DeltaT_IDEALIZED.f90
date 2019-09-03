@@ -699,10 +699,13 @@ DO kisf=2,mNisf
             SELECT CASE (kk_para)
  
             !*************************************************************************************
-            CASE(1:4)     ! kk_para=1 -> Linear local               : m = k . ( T(z) - Tf(z) )
-                          ! kk_para=2 -> Quadratic local            : m = k . ( T(z) - Tf(z) ) . | T(z) - Tf(z) | 
-                          ! kk_para=3 -> Linear with bottom Temp    : m = k . ( Tbot - Tf(z) )
-                          ! kk_para=4 -> Quadratic with bottom Temp : m = k . ( Tbot - Tf(z) ) . | Tbot - Tf(z) | 
+            CASE(1:3)     ! kk_para=1   -> Linear local               : m = k . ( T(z) - Tf(z) )
+                          ! kk_para=2   -> Quadratic local            : m = k . ( T(z) - Tf(z) ) . | T(z) - Tf(z) | 
+                          ! kk_para=101 -> Linear with bottom Temp    : m = k . ( Tbot - Tf(z) )
+                          ! kk_para=3   -> Quadratic with bottom Temp : m = k . ( Tbot - Tf(z) ) . | Tbot - Tf(z) | 
+
+              ll_local = .false. ; if ( kk_para .eq. 1 .or. kk_para .eq. 2 ) ll_local = .true.  ! local / bottom
+              ll_quadr = .false. ; if ( kk_para .eq. 2 .or. kk_para .eq. 3 ) ll_quadr = .true.  ! quadratic / linear
  
               gT  =  Kcoef_pct(kk_para,kk_K)
 
@@ -725,9 +728,9 @@ DO kisf=2,mNisf
                  area = 0.d0
                  do ii=1,mlondim
                  do jj=1,mlatdim
-                   if     ( kk_para .eq. 1 .or. kk_para .eq. 2 ) then
+                   if ( ll_local ) then
                      zz1=MIN(-ice_base_topography(ii,jj),front_bot_dep_max(kisf)) ! ice draft depth or deepest entrence depth
-                   elseif ( kk_para .eq. 3 .or. kk_para .eq. 4 ) then
+                   else
                      zz1=front_bot_dep_max(kisf) ! deepest point of the entrance
                    endif
                    zz2=-ice_base_topography(ii,jj) ! ice draft depth
@@ -737,10 +740,10 @@ DO kisf=2,mNisf
                      S0 = aainf*S_pres(kkinf)+aasup*S_pres(kksup)
                      Tf = lbd1*S0 + lbd2 + lbd3*zz2  ! Sea water freezing temperature at zz2 (ice draft depth)
                      ! Melt in m/yr (meters of ice per year), positive if ice ablation
-                     if     ( kk_para .eq. 1 .or. kk_para .eq. 3 ) then
-                       Melt(ii,jj) = - gT * meltfac * (T0-Tf+DeltaT)                     ! Uniform exchange velocity
-                     elseif ( kk_para .eq. 2 .or. kk_para .eq. 4 ) then
-                       Melt(ii,jj) = - gT * meltfac * meltfac * (T0-Tf+DeltaT) * abs(T0-Tf+DeltaT) ! Pollard & DeConto 2012
+                     if ( ll_quadr ) then
+                       Melt(ii,jj) = - gT * meltfac * meltfac * (T0-Tf+DeltaT) * abs(T0-Tf+DeltaT)
+                     else
+                       Melt(ii,jj) = - gT * meltfac * (T0-Tf+DeltaT)
                      endif
                      ! total melt (positive if melting) in Gt/yr
                      aaa = dlon * dlat * dcos(lat(jj)*deg2rad) * RT**2 * deg2rad**2
@@ -837,9 +840,9 @@ DO kisf=2,mNisf
                     mmm_avg_f = 0.d0
                     do ii=1,mlondim
                     do jj=1,mlatdim
-                      if     ( kk_para .eq. 1 .or. kk_para .eq. 2 ) then
+                      if ( ll_local ) then
                         zz1=MIN(-ice_base_topography(ii,jj),front_bot_dep_max(kisf)) ! ice draft depth or deepest entrence depth
-                      elseif ( kk_para .eq. 3 .or. kk_para .eq. 4 ) then
+                      else
                         zz1=front_bot_dep_max(kisf) ! deepest point of the entrance
                       endif
                       zz2=-ice_base_topography(ii,jj) ! ice draft depth
@@ -849,10 +852,10 @@ DO kisf=2,mNisf
                         S0 = aainf*S_futu(kkinf)+aasup*S_futu(kksup)
                         Tf = lbd1*S0 + lbd2 + lbd3*zz2  ! Sea water freezing temperature at zz2 (ice draft depth)
                         ! Melt in m/yr (meters of ice per year), positive if ice ablation
-                        if     ( kk_para .eq. 1 .or. kk_para .eq. 3 ) then
-                          Melt(ii,jj) = - gT * meltfac * (T0-Tf+DeltaT)                     ! Uniform exchange velocity
-                        elseif ( kk_para .eq. 2 .or. kk_para .eq. 4 ) then
-                          Melt(ii,jj) = - gT * meltfac * meltfac * (T0-Tf+DeltaT) * abs(T0-Tf+DeltaT) ! Pollard & DeConto 2012
+                        if ( ll_quadr ) then
+                          Melt(ii,jj) = - gT * meltfac * meltfac * (T0-Tf+DeltaT) * abs(T0-Tf+DeltaT)
+                        else
+                          Melt(ii,jj) = - gT * meltfac * (T0-Tf+DeltaT)
                         endif
                         ! total melt (positive if melting) in Gt/yr
                         aaa = dlon * dlat * dcos(lat(jj)*deg2rad) * RT**2 * deg2rad**2
@@ -887,10 +890,21 @@ DO kisf=2,mNisf
               ENDIF  !! IF ( .NOT. ( kk_para .LE. 2 .AND. nn_TS .GE. 4 ) )
 
             !*****************************************************************************************************************
-            CASE(5:6)   ! kk_para=5 -> Quadratic with mean TF             : m = k . < T(z) - Tf(z) > . |< T(z) - Tf(z) >| ! similar to Jenkins 2018
-                        ! kk_para=6 -> Quadratic with mixed local/mean TF : m = k . ( T(f) - Tf(z) ) . |< T(z) - Tf(z) >|
+            CASE(4:6)   ! kk_para=4 -> Quadratic with mixed local/mean TF                  : m = k . ( T(f) - Tf(z) ) . |< T(z) - Tf(z) >|
+                        ! kk_para=5 -> Quadratic with mixed local/mean TF and local slope  : m = k . < T(z) - Tf(z) > . |< T(z) - Tf(z) >| . sin(theta)
+                        ! kk_para=6 -> Quadratic with mixed local/mean TF and cavity slope : m = k . < T(z) - Tf(z) > . |< T(z) - Tf(z) >| . sin(theta)
 
-              gT  =  Kcoef_pct(kk_para,kk_K)
+              if     ( kk_para .eq.  4 ) then; TypeL='none__'
+              elseif ( kk_para .eq.  5 ) then; TypeL='locale'
+              elseif ( kk_para .eq.  6 ) then; TypeL='cavity'; endif
+
+              gT  =  gammaT
+
+              if ( dIFzGLmin .gt. 1.e0 ) then
+                sn = sin( atan( abs(front_ice_dep_avg-zGLmin) / dIFzGLmin ) ) ! sinus of mean cavity slope
+              else
+                sn = 0.d0
+              endif
 
               DeltaT = 0.d0
               incr = maxDeltaT / (Ntun-2)  ! initial increment for the dichotomy on DeltaT
@@ -929,16 +943,19 @@ DO kisf=2,mNisf
                 do jj=1,mlatdim
                    if ( isfmask(ii,jj) .eq. kisf ) then
                      ! Melt in m/yr (meters of ice per year), positive if ice ablation
-                     if ( kk_para .eq. 5 ) then
-                       Melt(ii,jj) = - gT * meltfac * meltfac * TF_avg * abs(TF_avg) 
-                     elseif ( kk_para .eq. 6 ) then
-                       zz1=MIN(-ice_base_topography(ii,jj),front_bot_dep_max(kisf)) ! ice draft depth or deepest entrence depth
-                       zz2=-ice_base_topography(ii,jj) ! ice draft depth
-                       CALL find_z(mdepth,depth,zz1,kkinf,kksup,aainf,aasup)
-                       T0 = aainf*T_pres(kkinf)+aasup*T_pres(kksup)
-                       S0 = aainf*S_pres(kkinf)+aasup*S_pres(kksup)
-                       Tf = lbd1*S0 + lbd2 + lbd3*zz2  ! Sea water freezing temperature at zz2 (ice draft depth)
+                     zz1=MIN(-ice_base_topography(ii,jj),front_bot_dep_max(kisf)) ! ice draft depth or deepest entrence depth
+                     zz2=-ice_base_topography(ii,jj) ! ice draft depth
+                     CALL find_z(mdepth,depth,zz1,kkinf,kksup,aainf,aasup)
+                     T0 = aainf*T_pres(kkinf)+aasup*T_pres(kksup)
+                     S0 = aainf*S_pres(kkinf)+aasup*S_pres(kksup)
+                     Tf = lbd1*S0 + lbd2 + lbd3*zz2  ! Sea water freezing temperature at zz2 (ice draft depth)
+                     ! Melt in m/yr (meters of ice per year), positive if ice ablation
+                     if     ( TypeL .eq. 'none__' ) then
                        Melt(ii,jj) = - gT * meltfac * meltfac * (T0-Tf+DeltaT) * abs(TF_avg)
+                     elseif ( TypeL .eq. 'locale' ) then
+                       Melt(ii,jj) = - gT * meltfac * meltfac * (T0-Tf+DeltaT) * abs(TF_avg) * sin(alpha(ii,jj,3)) ! local slope
+                     elseif ( TypeL .eq. 'cavity' ) then
+                       Melt(ii,jj) = - gT * meltfac * meltfac * (T0-Tf+DeltaT) * abs(TF_avg) * sn  ! cavity slope between GL and front
                      endif
                      ! total melt (positive if melting) in Gt/yr
                      aaa = dlon * dlat * dcos(lat(jj)*deg2rad) * RT**2 * deg2rad**2
@@ -1056,17 +1073,19 @@ DO kisf=2,mNisf
                   do ii=1,mlondim
                   do jj=1,mlatdim
                     if ( isfmask(ii,jj) .eq. kisf ) then
+                      zz1=MIN(-ice_base_topography(ii,jj),front_bot_dep_max(kisf)) ! ice draft depth or deepest entrence depth
+                      zz2=-ice_base_topography(ii,jj) ! ice draft depth
+                      CALL find_z(mdepth,depth,zz1,kkinf,kksup,aainf,aasup)
+                      T0 = aainf*T_futu(kkinf)+aasup*T_futu(kksup)
+                      S0 = aainf*S_futu(kkinf)+aasup*S_futu(kksup)
+                      Tf = lbd1*S0 + lbd2 + lbd3*zz2  ! Sea water freezing temperature at zz2 (ice draft depth)
                       ! Melt in m/yr (meters of ice per year), positive if ice ablation
-                      if ( kk_para .eq. 5 ) then
-                        Melt(ii,jj) = - gT * meltfac * meltfac * TF_avg * abs(TF_avg) 
-                      elseif ( kk_para .eq. 6 ) then
-                        zz1=MIN(-ice_base_topography(ii,jj),front_bot_dep_max(kisf)) ! ice draft depth or deepest entrence depth
-                        zz2=-ice_base_topography(ii,jj) ! ice draft depth
-                        CALL find_z(mdepth,depth,zz1,kkinf,kksup,aainf,aasup)
-                        T0 = aainf*T_futu(kkinf)+aasup*T_futu(kksup)
-                        S0 = aainf*S_futu(kkinf)+aasup*S_futu(kksup)
-                        Tf = lbd1*S0 + lbd2 + lbd3*zz2  ! Sea water freezing temperature at zz2 (ice draft depth)
+                      if     ( TypeL .eq. 'none__' ) then
                         Melt(ii,jj) = - gT * meltfac * meltfac * (T0-Tf+DeltaT) * abs(TF_avg)
+                      elseif ( TypeL .eq. 'locale' ) then
+                        Melt(ii,jj) = - gT * meltfac * meltfac * (T0-Tf+DeltaT) * abs(TF_avg) * sin(alpha(ii,jj,3)) ! local slope
+                      elseif ( TypeL .eq. 'cavity' ) then
+                        Melt(ii,jj) = - gT * meltfac * meltfac * (T0-Tf+DeltaT) * abs(TF_avg) * sn  ! cavity slope between GL and front
                       endif
                       ! total melt (positive if melting) in Gt/yr
                       aaa = dlon * dlat * dcos(lat(jj)*deg2rad) * RT**2 * deg2rad**2
