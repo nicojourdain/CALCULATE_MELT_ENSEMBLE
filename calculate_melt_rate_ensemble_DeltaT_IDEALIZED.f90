@@ -69,7 +69,7 @@ REAL(KIND=4), DIMENSION(:,:,:), ALLOCATABLE :: Pmelt_out, Fmelt_out, s_anom_3, t
 
 !----------------------------------------------------------------------------------------------------
 
-REAL(KIND=8) ::  zzz, T0c, T0, S0, Tf, lbd1, lbd2, lbd3, meltfac, K, gT, alphap, wn, x0, E0, Cd, GamT, GefT, GTS, MM,&
+REAL(KIND=8) ::  zzz, T0c, T0, S0, Tf, lbd1, lbd2, lbd3, meltfac, gT, alphap, wn, x0, E0, Cd, GamT, GefT, GTS, MM,   &
 &                M_hat, X_hat, ll, rhostar, CC, beta, g1, g2, rr, qqq, xerr, isfslope_x, isfslope_y, tmp1, Tstar,    &
 &                xbox, TF_avg, TF_tot, H0, gg, gg_SI, det, lonP2, latP2, lonP3, latP3, radius, angle, TT, SS, incr,  &
 &                yearinsec, rhoi_SI, rhosw_SI, rhofw_SI, Lf_SI, cpw_SI, grav_SI, lambda1, lambda2, lambda3, DeltaT,  &
@@ -101,7 +101,8 @@ CHARACTER(LEN=10) ::  TypeL
 
 !----------------------------------------------------------------------------------------------------
 
-LOGICAL :: llslp, llnD, ex, ll_curr_undr, ll_prev_undr, ll_curr_over, ll_prev_over, ll_local, ll_quadr
+LOGICAL :: llslp, llnD, ex, ll_curr_undr, ll_prev_undr, ll_curr_over, ll_prev_over, ll_local, ll_quadr, &
+&          ll_picop, ll_CCcst
 
 !----------------------------------------------------------------------------------------------------
 
@@ -480,7 +481,7 @@ ALLOCATE( T_pres(mdepth), S_pres(mdepth), T_futu(mdepth), S_futu(mdepth) )
 ALLOCATE( total_melt_pres(mNisf,mtot), mean_melt_pres(mNisf,mtot) )
 ALLOCATE( total_melt_futu(mNisf,mtot), mean_melt_futu(mNisf,mtot) )
 ALLOCATE( min_melt_pres(mNisf,mtot), max_melt_pres(mNisf,mtot) )
-ALLOCATE( DeltaT_out(mNisf,mtot), Kcoef(mNisf,mtot) ) !, Ccoef(mNisf,mtot) )
+ALLOCATE( DeltaT_out(mNisf,mtot), Kcoef(mNisf,mtot) )
 ALLOCATE( kstat(mNisf) )
 ALLOCATE( index_para(mNisf,mtot), index_CMIP(mNisf,mtot), index_WOA(mNisf,mtot), index_K(mNisf,mtot) )
 
@@ -495,7 +496,6 @@ min_melt_pres(:,:)   = NF90_FILL_FLOAT
 max_melt_pres(:,:)   = NF90_FILL_FLOAT
 DeltaT_out(:,:)  = NF90_FILL_FLOAT
 Kcoef(:,:)  = NF90_FILL_FLOAT
-!Ccoef(:,:)  = NF90_FILL_FLOAT
 index_para(:,:) = 0
 index_CMIP(:,:) = 0
 index_WOA (:,:) = 0
@@ -699,7 +699,7 @@ DO kisf=2,mNisf
             SELECT CASE (kk_para)
  
             !*************************************************************************************
-            CASE(1:3)     ! kk_para=1   -> Linear local               : m = k . ( T(z) - Tf(z) )
+            CASE(1:3,101) ! kk_para=1   -> Linear local               : m = k . ( T(z) - Tf(z) )
                           ! kk_para=2   -> Quadratic local            : m = k . ( T(z) - Tf(z) ) . | T(z) - Tf(z) | 
                           ! kk_para=101 -> Linear with bottom Temp    : m = k . ( Tbot - Tf(z) )
                           ! kk_para=3   -> Quadratic with bottom Temp : m = k . ( Tbot - Tf(z) ) . | Tbot - Tf(z) | 
@@ -900,12 +900,6 @@ DO kisf=2,mNisf
 
               gT  =  gammaT
 
-              if ( dIFzGLmin .gt. 1.e0 ) then
-                sn = sin( atan( abs(front_ice_dep_avg(kisf)-zGLmin) / dIFzGLmin ) ) ! sinus of mean cavity slope
-              else
-                sn = 0.d0
-              endif
-
               DeltaT = 0.d0
               incr = maxDeltaT / (Ntun-2)  ! initial increment for the dichotomy on DeltaT
               ll_curr_over = .false.
@@ -955,7 +949,7 @@ DO kisf=2,mNisf
                      elseif ( TypeL .eq. 'locale' ) then
                        Melt(ii,jj) = - gT * meltfac * meltfac * (T0-Tf+DeltaT) * abs(TF_avg) * sin(alpha(ii,jj,3)) ! local slope
                      elseif ( TypeL .eq. 'cavity' ) then
-                       Melt(ii,jj) = - gT * meltfac * meltfac * (T0-Tf+DeltaT) * abs(TF_avg) * sn  ! cavity slope between GL and front
+                       Melt(ii,jj) = - gT * meltfac * meltfac * (T0-Tf+DeltaT) * abs(TF_avg) * sin(alpha(ii,jj,1)) ! cavity slope between GL and front
                      endif
                      ! total melt (positive if melting) in Gt/yr
                      aaa = dlon * dlat * dcos(lat(jj)*deg2rad) * RT**2 * deg2rad**2
@@ -1085,7 +1079,7 @@ DO kisf=2,mNisf
                       elseif ( TypeL .eq. 'locale' ) then
                         Melt(ii,jj) = - gT * meltfac * meltfac * (T0-Tf+DeltaT) * abs(TF_avg) * sin(alpha(ii,jj,3)) ! local slope
                       elseif ( TypeL .eq. 'cavity' ) then
-                        Melt(ii,jj) = - gT * meltfac * meltfac * (T0-Tf+DeltaT) * abs(TF_avg) * sn  ! cavity slope between GL and front
+                        Melt(ii,jj) = - gT * meltfac * meltfac * (T0-Tf+DeltaT) * abs(TF_avg) * sin(alpha(ii,jj,1)) ! cavity slope between GL and front
                       endif
                       ! total melt (positive if melting) in Gt/yr
                       aaa = dlon * dlat * dcos(lat(jj)*deg2rad) * RT**2 * deg2rad**2
@@ -1118,19 +1112,48 @@ DO kisf=2,mNisf
               ENDDO  !! DO kk_CMIP5_anom = 1,mNmod
  
             !*****************************************************************************************************************
-            CASE (7:8) !== ORIGINAL BOX MODEL WITH UNIFORM MELT IN EACH BOX == 
-                          ! kk_para= 7 -> BOX MODEL  2-box forced by T_bot (Olbers & Hellmer 2010; Reese et al. 2018)
-                          ! kk_para= 8 -> BOX MODEL 10-box forced by T_bot
-     
-              gT  =  Kcoef_pct(kk_para,kk_K)   ! Effective Exchange Velocity PICO
+            CASE (7:11)   !== ORIGINAL BOX MODEL WITH UNIFORM MELT IN EACH BOX
+                          !    AND PICOP == 
+                          ! kk_para=  7 -> ORIGINAL BOX MODEL  2-box (Olbers & Hellmer 2010; Reese et al. 2018)
+                          ! kk_para=  8 -> ORIGINAL BOX MODEL  2-box + plume of type 'lazero' (PICOP, Pelle et al. 2019)   
+                          ! kk_para=  9 -> ORIGINAL BOX MODEL 10-box 
+                          ! kk_para= 10 -> ORIGINAL BOX MODEL 10-box + plume of type 'lazero' (PICOP, Pelle et al. 2019)   
+                          ! kk_para= 11 -> ORIGINAL BOX MODEL 10-box + plume of type 'simple' (PICOP, Pelle et al. 2019)   
+                          ! **NB** KEEP NB OF BOX IN ORDER (TO KEEP PICO PARAMETERS FOR THE NEXT ONE IF NB OF BOX DOES NOT CHANGE)
 
               CC      = C_PICO        ! Circulation Parameter PICO
+              gT      = gammaT_PICO   ! Effective Exchange Velocity PICO
               alphap  = alpha_PICO    ! Thermal expansion coeff PICO
               beta    = beta_PICO     ! Salinity contraction coeff PICO
               rhostar = rhostar_PICO  ! EOS ref Density PICO
               nD      = 0             ! Number Boxes PICO
-              if     ( kk_para .eq. 7 ) then; nD = nD1
-              elseif ( kk_para .eq. 8 ) then; nD = nD3; endif
+
+              E0      = E0_LAZER      ! Entrainment Coeff LAZER
+              GefT    = 5.9e-4        ! Effective Stanton number for LAZER (before tuning)
+
+              ! NB: KEEP NB OF BOX IN ORDER (TO KEEP PICO PARAMETERS 
+              ! FOR THE NEXT ONE IF NB OF BOX DOES NOT CHANGE)
+              if     (      kk_para .eq.  7 &
+              &        .or. kk_para .eq.  8 ) then; nD = nD1
+              elseif (      kk_para .eq.  9 &
+              &        .or. kk_para .eq. 10 &
+              &        .or. kk_para .eq. 11 ) then; nD = nD3; endif
+
+              ll_picop = .false.
+              if     (      kk_para .eq.  8 &
+              &        .or. kk_para .eq. 10 &
+              &        .or. kk_para .eq. 11 ) ll_picop = .true.
+
+              kkp = 0
+              if     (      kk_para .eq.  8 &
+              &        .or. kk_para .eq. 10 ) then; TypeL = 'lazero'; kkp = 2
+              elseif (      kk_para .eq. 11 ) then; TypeL = 'simple'; kkp = 1; endif
+
+              if ( ll_picop ) then
+                GefT = Kcoef_pct(kk_para,kk_K)
+              else
+                gT   = Kcoef_pct(kk_para,kk_K) ! this value is kept for PICOP
+              endif
 
               ALLOCATE( Tbox(nD), Sbox(nD), Mbox(nD) )
 
@@ -1181,26 +1204,63 @@ DO kisf=2,mNisf
                   Mbox(kk) = - gT * meltfac * ( lbd1*Sbox(kk) + lbd2 + lbd3*Zbox(kk,nD) - Tbox(kk) ) 
                 ENDDO
                 !  
-                !- Attribute melt at each node to a box value :
+                !- Melt rate :
+                Melt(:,:) = 0.d0
                 mmm_tot_p = 0.d0
                 mmm_avg_p = 0.d0
-                do ii=1,mlondim
-                do jj=1,mlatdim
-                  zzz=-ice_base_topography(ii,jj)
-                  if ( isfmask(ii,jj) .eq. kisf ) then
-                    rr = dGL(ii,jj) / ( dGL(ii,jj) + dIF(ii,jj) )
-                    do kk=1,nD
-                      if ( rr .ge. 1.0-sqrt(1.0*(nD-kk+1)/nD) .and. rr .le. 1.0-sqrt(1.0*(nD-kk)/nD) ) then
-                        Melt(ii,jj) = - Mbox(kk)
-                      endif
-                    enddo
-                    ! total melt (positive if melting) in Gt/yr
-                    aaa = dlon * dlat * dcos(lat(jj)*deg2rad) * RT**2 * deg2rad**2
-                    mmm_tot_p = mmm_tot_p - Melt(ii,jj) * aaa * 1.d-9  * rhoi_SI / rhofw_SI
-                    mmm_avg_p = mmm_avg_p +               aaa * 1.d-9
-                  endif
-                enddo
-                enddo
+                IF ( ll_picop .AND. gT .GT. 0.d0 ) THEN ! PICOP  ( gT .GT. 0.d0 means that prior BOX calculation went fine )
+                  do ii=1,mlondim
+                  do jj=1,mlatdim
+                    if ( isfmask(ii,jj) .eq. kisf ) then
+                      zz1=-ice_base_topography(ii,jj)
+                      zz2=MIN(zGL(ii,jj,kkp),front_bot_dep_max(kisf)) ! ice draft depth or deepest entrence depth
+                      ! "Ambient" temperature and salinity FROM BOX MODEL 
+                      rr = dGL(ii,jj) / ( dGL(ii,jj) + dIF(ii,jj) )
+                      do kk=1,nD
+                        if ( rr .ge. 1.0-sqrt(1.0*(nD-kk+1)/nD) .and. rr .le. 1.0-sqrt(1.0*(nD-kk)/nD) ) then
+                          T0 = Tbox(kk)
+                          S0 = Sbox(kk)
+                        endif
+                      enddo
+                      ! Sea water freezing temperature at the effective grounding line depth :
+                      Tf = lbd1*S0 + lbd2 + lbd3*zGL(ii,jj,kkp)  
+                      ! here X_hat = x_tilda, equ. 28b :
+                      ctau = (-lbd1*cpw*GefT*S0)/Lf 
+                      X_hat = lbd3 * (zz1 - zGL(ii,jj,kkp)) / ( (T0-Tf) * ( 1.d0 + 6.d-1 * ((E0*sin(alpha(ii,jj,kkp)))/(GefT+ctau+E0*sin(alpha(ii,jj,kkp))))**0.75 ) )
+                      X_hat = MAX( 0.d0, MIN( 1.d0, X_hat ) )
+                      ! here M_hat = M0(X_tilde), equ. 26 :
+                      M_hat = 1.d0/(2.d0*sqrt(2.d0)) * ( 3.d0*(1.d0-X_hat)**(4.d0/3.d0) -1.d0 ) * sqrt(1.d0 - (1.d0 - X_hat)**(4.d0/3.d0))
+                      !
+                      cr1 = (Lf*alpha_LAZER) / (cpw*GefT*beta_LAZER*S0)
+                      MM = sqrt((beta_LAZER*S0*gg)/(-lbd3*(Lf/cpw)**3)) * sqrt((1-cr1*GefT)/(Cd+E0*sin(alpha(ii,jj,kkp)))) * ((GefT*E0*sin(alpha(ii,jj,kkp)))/(GefT+ctau+E0*sin(alpha(ii,jj,kkp))))**1.5 * (T0-Tf)**2
+                      ! Melt rate in m/yr:
+                      Melt(ii,jj) = - MM * M_hat
+                      ! total melt (positive if melting) in Gt/yr
+                      aaa = dlon * dlat * dcos(lat(jj)*deg2rad) * RT**2 * deg2rad**2
+                      mmm_tot_p = mmm_tot_p - Melt(ii,jj) * aaa * 1.d-9  * rhoi_SI / rhofw_SI
+                      mmm_avg_p = mmm_avg_p +               aaa * 1.d-9
+                    endif
+                  enddo
+                  enddo
+                ELSEIF ( .NOT. ll_picop ) THEN ! ORIGINAL BOX MODEL
+                  do ii=1,mlondim
+                  do jj=1,mlatdim
+                    zzz=-ice_base_topography(ii,jj)
+                    if ( isfmask(ii,jj) .eq. kisf ) then
+                      rr = dGL(ii,jj) / ( dGL(ii,jj) + dIF(ii,jj) )
+                      do kk=1,nD
+                        if ( rr .ge. 1.0-sqrt(1.0*(nD-kk+1)/nD) .and. rr .le. 1.0-sqrt(1.0*(nD-kk)/nD) ) then
+                          Melt(ii,jj) = - Mbox(kk)
+                        endif
+                      enddo
+                      ! total melt (positive if melting) in Gt/yr
+                      aaa = dlon * dlat * dcos(lat(jj)*deg2rad) * RT**2 * deg2rad**2
+                      mmm_tot_p = mmm_tot_p - Melt(ii,jj) * aaa * 1.d-9  * rhoi_SI / rhofw_SI
+                      mmm_avg_p = mmm_avg_p +               aaa * 1.d-9
+                    endif
+                  enddo
+                  enddo
+                ENDIF ! IF ( ll_picop )
                 !
                 !write(*,*) '    kk_para, DeltaT, mmm_tot_p = ', kk_para, DeltaT, mmm_tot_p
                 ! keep better DeltaT if we never find a satisfactory DeltaT value:
@@ -1319,29 +1379,71 @@ DO kisf=2,mNisf
                     Sbox(kk) = Sbox(kk-1) - xbox*Sbox(kk-1)*meltfac
                     Mbox(kk) = - gT * meltfac * ( lbd1*Sbox(kk) + lbd2 + lbd3*Zbox(kk,nD) - Tbox(kk) ) 
                   ENDDO
-                  !  
-                  !- Attribute melt at each node to a box value :
+                  !
+                  !- Melt :
+                  Melt(:,:) = 0.d0
                   mmm_tot_f = 0.d0
                   mmm_avg_f = 0.d0
-                  do ii=1,mlondim
-                  do jj=1,mlatdim
-                    if ( isfmask(ii,jj) .eq. kisf ) then
-                      rr = dGL(ii,jj) / ( dGL(ii,jj) + dIF(ii,jj) )
-                      do kk=1,nD
-                        if ( rr .ge. 1.0-sqrt(1.0*(nD-kk+1)/nD) .and. rr .le. 1.0-sqrt(1.0*(nD-kk)/nD) ) then
-                          Melt(ii,jj) = - Mbox(kk)
-                        endif
-                      enddo
-                      ! total melt (positive if melting) in Gt/yr
-                      aaa = dlon * dlat * dcos(lat(jj)*deg2rad) * RT**2 * deg2rad**2
-                      mmm_tot_f = mmm_tot_f - Melt(ii,jj) * aaa * 1.d-9  * rhoi_SI / rhofw_SI
-                      mmm_avg_f = mmm_avg_f +               aaa * 1.d-9
-                      ! store mean melt pattern for each parametrization :
-                      Fmelt(ii,jj,kk_para) = Fmelt(ii,jj,kk_para) - Melt(ii,jj)
-                      Fnnnn(ii,jj,kk_para) = Fnnnn(ii,jj,kk_para) + 1
-                    endif
-                  enddo
-                  enddo
+                  IF ( ll_picop .AND. gT .GT. 0.d0 ) THEN ! PICOP  ( gT .GT. 0.d0 means that prior BOX calculation went fine )
+                    do ii=1,mlondim
+                    do jj=1,mlatdim
+                      if ( isfmask(ii,jj) .eq. kisf ) then
+                        zz1=-ice_base_topography(ii,jj)
+                        zz2=MIN(zGL(ii,jj,kkp),front_bot_dep_max(kisf)) ! ice draft depth or deepest entrence depth
+                        ! "Ambient" temperature and salinity FROM BOX MODEL 
+                        rr = dGL(ii,jj) / ( dGL(ii,jj) + dIF(ii,jj) )
+                        do kk=1,nD
+                          if ( rr .ge. 1.0-sqrt(1.0*(nD-kk+1)/nD) .and. rr .le. 1.0-sqrt(1.0*(nD-kk)/nD) ) then
+                            T0 = Tbox(kk)
+                            S0 = Sbox(kk)
+                          endif
+                        enddo
+                        ! Sea water freezing temperature at the effective grounding line depth :
+                        Tf = lbd1*S0 + lbd2 + lbd3*zGL(ii,jj,kkp)  
+                        ! here X_hat = x_tilda, equ. 28b :
+                        ctau = (-lbd1*cpw*GefT*S0)/Lf 
+                        X_hat = lbd3 * (zz1 - zGL(ii,jj,kkp)) / ( (T0-Tf) * ( 1.d0 + 6.d-1 * ((E0*sin(alpha(ii,jj,kkp)))/(GefT+ctau+E0*sin(alpha(ii,jj,kkp))))**0.75 ) )
+                        X_hat = MAX( 0.d0, MIN( 1.d0, X_hat ) )
+                        ! here M_hat = M0(X_tilde), equ. 26 :
+                        M_hat = 1.d0/(2.d0*sqrt(2.d0)) * ( 3.d0*(1.d0-X_hat)**(4.d0/3.d0) -1.d0 ) * sqrt(1.d0 - (1.d0 - X_hat)**(4.d0/3.d0))
+                        !
+                        cr1 = (Lf*alpha_LAZER) / (cpw*GefT*beta_LAZER*S0)
+                        MM = sqrt((beta_LAZER*S0*gg)/(-lbd3*(Lf/cpw)**3)) * sqrt((1-cr1*GefT)/(Cd+E0*sin(alpha(ii,jj,kkp)))) * ((GefT*E0*sin(alpha(ii,jj,kkp)))/(GefT+ctau+E0*sin(alpha(ii,jj,kkp))))**1.5 * (T0-Tf)**2
+                        ! Melt rate in m/yr:
+                        Melt(ii,jj) = - MM * M_hat
+                        ! total melt (positive if melting) in Gt/yr
+                        aaa = dlon * dlat * dcos(lat(jj)*deg2rad) * RT**2 * deg2rad**2
+                        mmm_tot_f = mmm_tot_f - Melt(ii,jj) * aaa * 1.d-9  * rhoi_SI / rhofw_SI
+                        mmm_avg_f = mmm_avg_f +               aaa * 1.d-9
+                        ! store mean melt pattern for each parametrization :
+                        Fmelt(ii,jj,kk_para) = Fmelt(ii,jj,kk_para) - Melt(ii,jj)
+                        Fnnnn(ii,jj,kk_para) = Fnnnn(ii,jj,kk_para) + 1
+                      endif
+                    enddo
+                    enddo
+                  ELSEIF ( .NOT. ll_picop ) THEN ! ORIGINAL BOX MODEL
+                    do ii=1,mlondim
+                    do jj=1,mlatdim
+                      zzz=-ice_base_topography(ii,jj)
+                      if ( isfmask(ii,jj) .eq. kisf ) then
+                        rr = dGL(ii,jj) / ( dGL(ii,jj) + dIF(ii,jj) )
+                        do kk=1,nD
+                          if ( rr .ge. 1.0-sqrt(1.0*(nD-kk+1)/nD) .and. rr .le. 1.0-sqrt(1.0*(nD-kk)/nD) ) then
+                            Melt(ii,jj) = - Mbox(kk)
+                          endif
+                        enddo
+                        ! total melt (positive if melting) in Gt/yr
+                        aaa = dlon * dlat * dcos(lat(jj)*deg2rad) * RT**2 * deg2rad**2
+                        mmm_tot_f = mmm_tot_f - Melt(ii,jj) * aaa * 1.d-9  * rhoi_SI / rhofw_SI
+                        mmm_avg_f = mmm_avg_f +               aaa * 1.d-9
+                        ! store mean melt pattern for each parametrization :
+                        Fmelt(ii,jj,kk_para) = Fmelt(ii,jj,kk_para) - Melt(ii,jj)
+                        Fnnnn(ii,jj,kk_para) = Fnnnn(ii,jj,kk_para) + 1
+                      endif
+                    enddo
+                    enddo
+                  ENDIF ! IF ( ll_picop )
+                  !
                   ! average melt rate (in m.w.e/yr) :
                   mmm_avg_f = mmm_tot_f / mmm_avg_f
                   ! saved quantities for offline statistical analysis:
@@ -1358,7 +1460,6 @@ DO kisf=2,mNisf
                   max_melt_pres  (kisf,kstat(kisf)) = mmm_max_p
                   DeltaT_out     (kisf,kstat(kisf)) = DeltaT
                   Kcoef          (kisf,kstat(kisf)) = gT
-                  !Ccoef          (kisf,kstat(kisf)) = CC
                 endif
 
               ENDDO  !! DO kk_CMIP5_anom = 1,mNmod
@@ -1366,26 +1467,29 @@ DO kisf=2,mNisf
               DEALLOCATE( Tbox, Sbox, Mbox )
 
             !*****************************************************************************************************************
-            CASE (9:12) !== BOX MODEL AS IMPLEMENTED IN PISM (section 2.4 of Reese et al. 2014) == 
-                          ! kk_para= 9 -> BOX MODEL  5-box forced by T_bot, C = 1.e6
-                          ! kk_para=10 -> BOX MODEL 10-box forced by T_bot, C = 1.e6
-                          ! kk_para=11 -> BOX MODEL  5-box forced by T_bot, C = a . gammaT
-                          ! kk_para=12 -> BOX MODEL 10-box forced by T_bot, C = a . gammaT
+            CASE (12:15) !== BOX MODEL AS IMPLEMENTED IN PISM (section 2.4 of Reese et al. 2014) == 
+                          ! kk_para=12 -> BOX MODEL  5-box forced by T_bot, C = 1.e6
+                          ! kk_para=13 -> BOX MODEL 10-box forced by T_bot, C = 1.e6
+                          ! kk_para=14 -> BOX MODEL  5-box forced by T_bot, C = a . gammaT
+                          ! kk_para=15 -> BOX MODEL 10-box forced by T_bot, C = a . gammaT
 
               gT  =  Kcoef_pct(kk_para,kk_K)   ! Effective Exchange Velocity PICO
-
-              if ( kk_para .eq.  9 .or. kk_para .eq. 10 ) then
-                CC = C_PICO   ! tuning with constant C value (best circulation parameter in Reese et al. 2018)
-              else
-                CC = ttt * gT ! tuning by varying C and gammaT together
-              endif
-
+              
               alphap  = alpha_PICO    ! Thermal expansion coeff PICO
               beta    = beta_PICO     ! Salinity contraction coeff PICO
               rhostar = rhostar_PICO  ! EOS ref Density PICO
               nD      = 0             ! Number Boxes PICO
-              if     ( kk_para .eq.  9 .or. kk_para .eq. 11 ) then; nD = nD2
-              elseif ( kk_para .eq. 10 .or. kk_para .eq. 12 ) then; nD = nD3; endif
+
+              if     ( kk_para .eq. 12 .or. kk_para .eq. 14 ) then; nD = nD2
+              elseif ( kk_para .eq. 13 .or. kk_para .eq. 15 ) then; nD = nD3; endif
+
+              ll_CCcst = .true. ; if ( kk_para .eq. 14 .or. kk_para .eq. 15 ) ll_CCcst = .false.
+
+              if ( ll_CCcst ) then
+                CC = C_PICO   ! tuning with constant C value (best circulation parameter in Reese et al. 2018)
+              else
+                CC = ttt * gT ! tuning by varying C and gammaT together
+              endif
 
               ALLOCATE( Tbox(nD), Sbox(nD) )
 
@@ -1659,7 +1763,6 @@ DO kisf=2,mNisf
                   max_melt_pres  (kisf,kstat(kisf)) = mmm_max_p
                   DeltaT_out     (kisf,kstat(kisf)) = DeltaT
                   Kcoef          (kisf,kstat(kisf)) = gT
-                  !Ccoef          (kisf,kstat(kisf)) = CC
                 endif
 
               ENDDO  !! DO kk_CMIP5_anom = 1,mNmod
@@ -1667,13 +1770,14 @@ DO kisf=2,mNisf
               DEALLOCATE( Tbox, Sbox )
 
             !*************************************************************************
-            CASE(13:15) ! Plume model (Lazeroms et al. 2018)
-                        ! Tuning both GamT and GefT
+            CASE(113:115) ! Plume model (Lazeroms et al. 2018)
+                          ! Tuning both GamT and GefT
+                          ! NB: Lazeroms 2019 is slightly better and more physical => this one is no more used
 
               E0      = E0_LAZER      ! Entrainment Coeff LAZER
-              if     ( kk_para .eq. 13 ) then; TypeL='simple'; kkp=1        ! Zgl and Alpha are found between draft point and the central point
-              elseif ( kk_para .eq. 14 ) then; TypeL='lazero'; kkp=2        ! original from Lazeroms et al.
-              elseif ( kk_para .eq. 15 ) then; TypeL='appenB'; kkp=3; endif ! Appendix B in submitted TCD
+              if     ( kk_para .eq. 113 ) then; TypeL='simple'; kkp=1        ! Zgl and Alpha are found between draft point and the central point
+              elseif ( kk_para .eq. 114 ) then; TypeL='lazero'; kkp=2        ! original from Lazeroms et al.
+              elseif ( kk_para .eq. 115 ) then; TypeL='appenB'; kkp=3; endif ! Appendix B in submitted TCD
 
               GamT = Kcoef_pct(kk_para,kk_K)       ! Thermal Stanton number LAZER
               GefT = GTS0_LAZER * GamT / GT_LAZER  ! Effective thermal Stanton number LAZER
@@ -1686,7 +1790,6 @@ DO kisf=2,mNisf
               ll_prev_undr = .false.
 
               ! iterations to find present-day melting and tuning coeff. :
-              K = 1.d0 ! old tuning factor (no more used for tuning)
               m_closest = 1.d20
               DeltaT_closest = -99999.99
               DO stun=1,Ntun  ! tuning iterations
@@ -1719,7 +1822,7 @@ DO kisf=2,mNisf
                       M_hat = M_hat + pp(kk) * X_hat**(kk-1)
                     enddo
                     ! Melt rate in m/yr:
-                    Melt(ii,jj) = - K * MM * M_hat
+                    Melt(ii,jj) = - MM * M_hat
                     ! total melt (positive if melting) in Gt/yr
                     aaa = dlon * dlat * dcos(lat(jj)*deg2rad) * RT**2 * deg2rad**2
                     mmm_tot_p = mmm_tot_p - Melt(ii,jj) * aaa * 1.d-9  * rhoi_SI / rhofw_SI
@@ -1839,7 +1942,7 @@ DO kisf=2,mNisf
                         M_hat = M_hat + pp(kk) * X_hat**(kk-1)
                       enddo
                       ! Melt rate in m/yr:
-                      Melt(ii,jj) = - K * MM * M_hat
+                      Melt(ii,jj) = - MM * M_hat
                       ! total melt (positive if melting) in Gt/yr
                       aaa = dlon * dlat * dcos(lat(jj)*deg2rad) * RT**2 * deg2rad**2
                       mmm_tot_f = mmm_tot_f - Melt(ii,jj) * aaa * 1.d-9  * rhoi_SI / rhofw_SI
@@ -1889,7 +1992,6 @@ DO kisf=2,mNisf
               ll_prev_undr = .false.
 
               ! iterations to find present-day melting and tuning coeff. :
-              K = 1.d0 ! old tuning factor (no more used for tuning)
               m_closest = 1.d20
               DeltaT_closest = -99999.99
               DO stun=1,Ntun  ! tuning iterations
@@ -1917,7 +2019,7 @@ DO kisf=2,mNisf
                     cr1 = (Lf*alpha_LAZER) / (cpw*GefT*beta_LAZER*S0)
                     MM = sqrt((beta_LAZER*S0*gg)/(-lbd3*(Lf/cpw)**3)) * sqrt((1-cr1*GefT)/(Cd+E0*sin(alpha(ii,jj,kkp)))) * ((GefT*E0*sin(alpha(ii,jj,kkp)))/(GefT+ctau+E0*sin(alpha(ii,jj,kkp))))**1.5 * (T0-Tf+DeltaT)**2
                     ! Melt rate in m/yr:
-                    Melt(ii,jj) = - K * MM * M_hat
+                    Melt(ii,jj) = - MM * M_hat
                     ! total melt (positive if melting) in Gt/yr
                     aaa = dlon * dlat * dcos(lat(jj)*deg2rad) * RT**2 * deg2rad**2
                     mmm_tot_p = mmm_tot_p - Melt(ii,jj) * aaa * 1.d-9  * rhoi_SI / rhofw_SI
@@ -2032,7 +2134,7 @@ DO kisf=2,mNisf
                       cr1 = (Lf*alpha_LAZER) / (cpw*GefT*beta_LAZER*S0)
                       MM = sqrt((beta_LAZER*S0*gg)/(-lbd3*(Lf/cpw)**3)) * sqrt((1-cr1*GefT)/(Cd+E0*sin(alpha(ii,jj,kkp)))) * ((GefT*E0*sin(alpha(ii,jj,kkp)))/(GefT+ctau+E0*sin(alpha(ii,jj,kkp))))**1.5 * (T0-Tf+DeltaT)**2
                       ! Melt rate in m/yr:
-                      Melt(ii,jj) = - K * MM * M_hat
+                      Melt(ii,jj) = - MM * M_hat
                       ! total melt (positive if melting) in Gt/yr
                       aaa = dlon * dlat * dcos(lat(jj)*deg2rad) * RT**2 * deg2rad**2
                       mmm_tot_f = mmm_tot_f - Melt(ii,jj) * aaa * 1.d-9  * rhoi_SI / rhofw_SI
@@ -2153,8 +2255,6 @@ DO kisf=2,mNisf
    call erreur(status,.TRUE.,"def_var_DeltaT_ID")
    status = NF90_DEF_VAR(fidM,"Kcoef",NF90_FLOAT,(/dimID_Nisf,dimID_mstat/),Kcoef_ID)
    call erreur(status,.TRUE.,"def_var_Kcoef_ID")
-   !status = NF90_DEF_VAR(fidM,"Ccoef",NF90_FLOAT,(/dimID_Nisf,dimID_mstat/),Ccoef_ID)
-   !call erreur(status,.TRUE.,"def_var_Ccoef_ID")
    status = NF90_DEF_VAR(fidM,"index_para",NF90_BYTE,(/dimID_Nisf,dimID_mstat/),index_para_ID)
    call erreur(status,.TRUE.,"def_var_index_para_ID")
    status = NF90_DEF_VAR(fidM,"index_CMIP",NF90_BYTE,(/dimID_Nisf,dimID_mstat/),index_CMIP_ID)
@@ -2264,14 +2364,6 @@ DO kisf=2,mNisf
    call erreur(status,.TRUE.,"put_att_Kcoef_ID")
    status = NF90_PUT_ATT(fidM,Kcoef_ID,"title","K coeff")
    call erreur(status,.TRUE.,"put_att_Kcoef_ID")
-   !status = NF90_PUT_ATT(fidM,Ccoef_ID,"units","TBD")
-   !call erreur(status,.TRUE.,"put_att_Ccoef_ID")
-   !status = NF90_PUT_ATT(fidM,Ccoef_ID,"_FillValue",NF90_FILL_FLOAT)
-   !call erreur(status,.TRUE.,"put_att_Ccoef_ID")
-   !status = NF90_PUT_ATT(fidM,Ccoef_ID,"long_name","C coefficient (PICO's overturning)")
-   !call erreur(status,.TRUE.,"put_att_Ccoef_ID")
-   !status = NF90_PUT_ATT(fidM,Ccoef_ID,"title","C coeff")
-   !call erreur(status,.TRUE.,"put_att_Ccoef_ID")
    status = NF90_PUT_ATT(fidM,index_para_ID,"units","-")
    call erreur(status,.TRUE.,"put_att_index_para_ID")
    status = NF90_PUT_ATT(fidM,index_para_ID,"long_name","index defining the melt parameterization")
@@ -2317,7 +2409,6 @@ DO kisf=2,mNisf
    status = NF90_PUT_VAR(fidM,max_melt_pres_ID,max_melt_pres); call erreur(status,.TRUE.,"var_max_melt_pres_ID")
    status = NF90_PUT_VAR(fidM,DeltaT_ID,DeltaT_out); call erreur(status,.TRUE.,"var_DeltaT_ID")
    status = NF90_PUT_VAR(fidM,Kcoef_ID,Kcoef); call erreur(status,.TRUE.,"var_Kcoef_ID")
-   !status = NF90_PUT_VAR(fidM,Ccoef_ID,Ccoef); call erreur(status,.TRUE.,"var_Ccoef_ID")
    status = NF90_PUT_VAR(fidM,index_para_ID,index_para); call erreur(status,.TRUE.,"var_index_para_ID")
    status = NF90_PUT_VAR(fidM,index_CMIP_ID,index_CMIP); call erreur(status,.TRUE.,"var_index_CMIP_ID")
    status = NF90_PUT_VAR(fidM,index_WOA_ID,index_WOA); call erreur(status,.TRUE.,"var_index_WOA_ID")
