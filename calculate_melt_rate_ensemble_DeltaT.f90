@@ -1275,7 +1275,7 @@ DO kisf=2,mNisf
                       ! "Ambient" temperature and salinity FROM BOX MODEL 
                       rr = dGL(ii,jj) / ( dGL(ii,jj) + dIF(ii,jj) )
                       do kk=1,nD
-                        if ( rr .ge. 1.0-sqrt(1.0*(nD-kk+1)/nD) .and. rr .le. 1.0-sqrt(1.0*(nD-kk)/nD) ) then
+                        if ( rr .ge. 1.d0-sqrt(1.d0*(nD-kk+1)/nD) .and. rr .le. 1.d0-sqrt(1.d0*(nD-kk)/nD) ) then
                           T0 = Tbox(kk)
                           S0 = Sbox(kk)
                         endif
@@ -1307,7 +1307,7 @@ DO kisf=2,mNisf
                     if ( isfmask(ii,jj) .eq. kisf ) then
                       rr = dGL(ii,jj) / ( dGL(ii,jj) + dIF(ii,jj) )
                       do kk=1,nD
-                        if ( rr .ge. 1.0-sqrt(1.0*(nD-kk+1)/nD) .and. rr .le. 1.0-sqrt(1.0*(nD-kk)/nD) ) then
+                        if ( rr .ge. 1.d0-sqrt(1.d0*(nD-kk+1)/nD) .and. rr .le. 1.d0-sqrt(1.d0*(nD-kk)/nD) ) then
                           Melt(ii,jj) = - Mbox(kk)
                         endif
                       enddo
@@ -1451,7 +1451,7 @@ DO kisf=2,mNisf
                         ! "Ambient" temperature and salinity FROM BOX MODEL 
                         rr = dGL(ii,jj) / ( dGL(ii,jj) + dIF(ii,jj) )
                         do kk=1,nD
-                          if ( rr .ge. 1.0-sqrt(1.0*(nD-kk+1)/nD) .and. rr .le. 1.0-sqrt(1.0*(nD-kk)/nD) ) then
+                          if ( rr .ge. 1.d0-sqrt(1.d0*(nD-kk+1)/nD) .and. rr .le. 1.d0-sqrt(1.d0*(nD-kk)/nD) ) then
                             T0 = Tbox(kk)
                             S0 = Sbox(kk)
                           endif
@@ -1486,7 +1486,7 @@ DO kisf=2,mNisf
                       if ( isfmask(ii,jj) .eq. kisf ) then
                         rr = dGL(ii,jj) / ( dGL(ii,jj) + dIF(ii,jj) )
                         do kk=1,nD
-                          if ( rr .ge. 1.0-sqrt(1.0*(nD-kk+1)/nD) .and. rr .le. 1.0-sqrt(1.0*(nD-kk)/nD) ) then
+                          if ( rr .ge. 1.d0-sqrt(1.d0*(nD-kk+1)/nD) .and. rr .le. 1.d0-sqrt(1.d0*(nD-kk)/nD) ) then
                             Melt(ii,jj) = - Mbox(kk)
                           endif
                         enddo
@@ -1573,33 +1573,35 @@ DO kisf=2,mNisf
                 !- Temerature and salinity in Box #1 :
                 do ii=1,mlondim
                 do jj=1,mlatdim
-                  rr = dGL(ii,jj) / ( dGL(ii,jj) + dIF(ii,jj) )
-                  T0c = T0 + DeltaT
-                  if ( isfmask(ii,jj) .eq. kisf .and. rr .le. 1.0-sqrt(1.0*(nD-1)/nD) ) then
-                    zzz = -ice_base_topography(ii,jj)
-                    aaa = dlon * dlat * dcos(lat(jj)*deg2rad) * RT**2 * deg2rad**2
-                    Tstar = lbd1*S0 + lbd2 + lbd3*zzz - T0c  !NB: Tstar should be < 0
-                    !g1 = gT * aaa
-                    g1 = Abox(1,nD) * gT
-                    tmp1 = g1 / (CC*rhostar*(beta*S0*meltfac-alphap))
-                    sn = (0.5*tmp1)**2 - tmp1*Tstar
-                    ! limit T0c to avoid negative discriminent (no solution for x otherwise) :
-                    if ( sn .lt. 0.d0 ) then
-                      ! NOT CHANGING DeltaT TO KEEP SAME FOR ALL POINTS:
-                      T0c = lbd1*S0 + lbd2 + lbd3*zzz - 0.25 * tmp1
-                      xbox = 0.d0 
-                    else
-                      xbox = - 0.5*tmp1 + sqrt(sn) ! standard solution (Reese et al)
+                  if ( isfmask(ii,jj) .eq. kisf ) then
+                    rr = dGL(ii,jj) / ( dGL(ii,jj) + dIF(ii,jj) )
+                    T0c = T0 + DeltaT
+                    if ( rr .ge. 0.d0 .and. rr .le. 1.d0-sqrt(1.d0*(nD-1)/nD) ) then
+                      zzz = -ice_base_topography(ii,jj)
+                      aaa = dlon * dlat * dcos(lat(jj)*deg2rad) * RT**2 * deg2rad**2
+                      Tstar = lbd1*S0 + lbd2 + lbd3*zzz - T0c  !NB: Tstar should be < 0
+                      !g1 = gT * aaa
+                      g1 = Abox(1,nD) * gT
+                      tmp1 = g1 / (CC*rhostar*(beta*S0*meltfac-alphap))
+                      sn = (0.5*tmp1)**2 - tmp1*Tstar
+                      ! limit T0c to avoid negative discriminent (no solution for x otherwise) :
+                      if ( sn .lt. 0.d0 ) then
+                        ! NOT CHANGING DeltaT TO KEEP SAME FOR ALL POINTS:
+                        T0c = lbd1*S0 + lbd2 + lbd3*zzz - 0.25 * tmp1
+                        xbox = 0.d0 
+                      else
+                        xbox = - 0.5*tmp1 + sqrt(sn) ! standard solution (Reese et al)
+                      endif
+                      TT = T0c - xbox
+                      SS = S0 - xbox*S0*meltfac
+                      Tbox(1) = Tbox(1) + TT * aaa
+                      Sbox(1) = Sbox(1) + SS * aaa
+                      qqq = qqq + CC*rhostar*(beta*(S0-SS)-alphap*(T0c-TT)) * aaa
+                      Melt(ii,jj) = gT * meltfac * ( lbd1*SS + lbd2 + lbd3*zzz - TT )
+                      ! total melt (positive if melting) in Gt/yr
+                      mmm_tot_p = mmm_tot_p - Melt(ii,jj) * aaa * 1.d-9  * rhoi_SI / rhofw_SI
+                      mmm_avg_p = mmm_avg_p +               aaa * 1.d-9
                     endif
-                    TT = T0c - xbox
-                    SS = S0 - xbox*S0*meltfac
-                    Tbox(1) = Tbox(1) + TT * aaa
-                    Sbox(1) = Sbox(1) + SS * aaa
-                    qqq = qqq + CC*rhostar*(beta*(S0-SS)-alphap*(T0c-TT)) * aaa
-                    Melt(ii,jj) = gT * meltfac * ( lbd1*SS + lbd2 + lbd3*zzz - TT )
-                    ! total melt (positive if melting) in Gt/yr
-                    mmm_tot_p = mmm_tot_p - Melt(ii,jj) * aaa * 1.d-9  * rhoi_SI / rhofw_SI
-                    mmm_avg_p = mmm_avg_p +               aaa * 1.d-9
                   endif
                 enddo
                 enddo
@@ -1611,23 +1613,25 @@ DO kisf=2,mNisf
                 DO kk=2,nD
                   do ii=1,mlondim
                   do jj=1,mlatdim
-                    rr = dGL(ii,jj) / ( dGL(ii,jj) + dIF(ii,jj) )
-                    if ( isfmask(ii,jj) .eq. kisf .and. rr .ge. 1.0-sqrt(1.0*(nD-kk+1)/nD) .and. rr .le. 1.0-sqrt(1.0*(nD-kk)/nD) ) then
-                      zzz = -ice_base_topography(ii,jj)
-                      aaa = dlon * dlat * dcos(lat(jj)*deg2rad) * RT**2 * deg2rad**2
-                      Tstar = lbd1*Sbox(kk-1) + lbd2 + lbd3*zzz - Tbox(kk-1)
-                      !g1  = gT * aaa
-                      g1  = Abox(kk,nD) * gT
-                      g2  = g1 * meltfac
-                      xbox = - g1 * Tstar / ( qqq + g1 - g2*lbd1*Sbox(kk-1) )
-                      TT = Tbox(kk-1) - xbox
-                      SS = Sbox(kk-1) - xbox*Sbox(kk-1)*meltfac
-                      Tbox(kk) =  Tbox(kk) + TT * aaa
-                      Sbox(kk) =  Sbox(kk) + SS * aaa
-                      Melt(ii,jj) = gT * meltfac * ( lbd1*SS + lbd2 + lbd3*zzz - TT )
-                      ! total melt (positive if melting) in Gt/yr
-                      mmm_tot_p = mmm_tot_p - Melt(ii,jj) * aaa * 1.d-9  * rhoi_SI / rhofw_SI
-                      mmm_avg_p = mmm_avg_p +               aaa * 1.d-9
+                    if ( isfmask(ii,jj) .eq. kisf ) then
+                      rr = dGL(ii,jj) / ( dGL(ii,jj) + dIF(ii,jj) )
+                      if ( rr .ge. 1.d0-sqrt(1.d0*(nD-kk+1)/nD) .and. rr .le. 1.d0-sqrt(1.d0*(nD-kk)/nD) ) then
+                        zzz = -ice_base_topography(ii,jj)
+                        aaa = dlon * dlat * dcos(lat(jj)*deg2rad) * RT**2 * deg2rad**2
+                        Tstar = lbd1*Sbox(kk-1) + lbd2 + lbd3*zzz - Tbox(kk-1)
+                        !g1  = gT * aaa
+                        g1  = Abox(kk,nD) * gT
+                        g2  = g1 * meltfac
+                        xbox = - g1 * Tstar / ( qqq + g1 - g2*lbd1*Sbox(kk-1) )
+                        TT = Tbox(kk-1) - xbox
+                        SS = Sbox(kk-1) - xbox*Sbox(kk-1)*meltfac
+                        Tbox(kk) =  Tbox(kk) + TT * aaa
+                        Sbox(kk) =  Sbox(kk) + SS * aaa
+                        Melt(ii,jj) = gT * meltfac * ( lbd1*SS + lbd2 + lbd3*zzz - TT )
+                        ! total melt (positive if melting) in Gt/yr
+                        mmm_tot_p = mmm_tot_p - Melt(ii,jj) * aaa * 1.d-9  * rhoi_SI / rhofw_SI
+                        mmm_avg_p = mmm_avg_p +               aaa * 1.d-9
+                      endif
                     endif
                   enddo
                   enddo
@@ -1729,33 +1733,35 @@ DO kisf=2,mNisf
                   !- Temerature and salinity in Box #1 :
                   do ii=1,mlondim
                   do jj=1,mlatdim
-                    rr = dGL(ii,jj) / ( dGL(ii,jj) + dIF(ii,jj) )
-                    T0c = T0 + DeltaT
-                    if ( isfmask(ii,jj) .eq. kisf .and. rr .le. 1.0-sqrt(1.0*(nD-1)/nD) ) then
-                      zzz = -ice_base_topography(ii,jj)
-                      aaa = dlon * dlat * dcos(lat(jj)*deg2rad) * RT**2 * deg2rad**2
-                      Tstar = lbd1*S0 + lbd2 + lbd3*zzz - T0c  !NB: Tstar should be < 0
-                      !g1 = gT * aaa
-                      g1 = Abox(1,nD) * gT
-                      tmp1 = g1 / (CC*rhostar*(beta*S0*meltfac-alphap))
-                      sn = (0.5*tmp1)**2 - tmp1*Tstar
-                      ! limit T0c to avoid negative discriminent (no solution for x otherwise) :
-                      if ( sn .lt. 0.d0 ) then
-                        ! NOT CHANGING DeltaT TO KEEP SAME FOR ALL POINTS:
-                        T0c = lbd1*S0 + lbd2 + lbd3*zzz - 0.25 * tmp1
-                        xbox = 0.d0 
-                      else
-                        xbox = - 0.5*tmp1 + sqrt(sn) ! standard solution (Reese et al)
+                    if ( isfmask(ii,jj) .eq. kisf ) then
+                      rr = dGL(ii,jj) / ( dGL(ii,jj) + dIF(ii,jj) )
+                      T0c = T0 + DeltaT
+                      if ( rr .ge. 0.d0 .and. rr .le. 1.d0-sqrt(1.d0*(nD-1)/nD) ) then
+                        zzz = -ice_base_topography(ii,jj)
+                        aaa = dlon * dlat * dcos(lat(jj)*deg2rad) * RT**2 * deg2rad**2
+                        Tstar = lbd1*S0 + lbd2 + lbd3*zzz - T0c  !NB: Tstar should be < 0
+                        !g1 = gT * aaa
+                        g1 = Abox(1,nD) * gT
+                        tmp1 = g1 / (CC*rhostar*(beta*S0*meltfac-alphap))
+                        sn = (0.5*tmp1)**2 - tmp1*Tstar
+                        ! limit T0c to avoid negative discriminent (no solution for x otherwise) :
+                        if ( sn .lt. 0.d0 ) then
+                          ! NOT CHANGING DeltaT TO KEEP SAME FOR ALL POINTS:
+                          T0c = lbd1*S0 + lbd2 + lbd3*zzz - 0.25 * tmp1
+                          xbox = 0.d0 
+                        else
+                          xbox = - 0.5*tmp1 + sqrt(sn) ! standard solution (Reese et al)
+                        endif
+                        TT = T0c - xbox
+                        SS = S0 - xbox*S0*meltfac
+                        Tbox(1) = Tbox(1) + TT * aaa
+                        Sbox(1) = Sbox(1) + SS * aaa
+                        qqq = qqq + CC*rhostar*(beta*(S0-SS)-alphap*(T0c-TT)) * aaa
+                        Melt(ii,jj) = gT * meltfac * ( lbd1*SS + lbd2 + lbd3*zzz - TT )
+                        ! total melt (positive if melting) in Gt/yr
+                        mmm_tot_f = mmm_tot_f - Melt(ii,jj) * aaa * 1.d-9  * rhoi_SI / rhofw_SI
+                        mmm_avg_f = mmm_avg_f +               aaa * 1.d-9
                       endif
-                      TT = T0c - xbox
-                      SS = S0 - xbox*S0*meltfac
-                      Tbox(1) = Tbox(1) + TT * aaa
-                      Sbox(1) = Sbox(1) + SS * aaa
-                      qqq = qqq + CC*rhostar*(beta*(S0-SS)-alphap*(T0c-TT)) * aaa
-                      Melt(ii,jj) = gT * meltfac * ( lbd1*SS + lbd2 + lbd3*zzz - TT )
-                      ! total melt (positive if melting) in Gt/yr
-                      mmm_tot_f = mmm_tot_f - Melt(ii,jj) * aaa * 1.d-9  * rhoi_SI / rhofw_SI
-                      mmm_avg_f = mmm_avg_f +               aaa * 1.d-9
                     endif
                   enddo
                   enddo
@@ -1767,23 +1773,25 @@ DO kisf=2,mNisf
                   DO kk=2,nD
                     do ii=1,mlondim
                     do jj=1,mlatdim
-                      rr = dGL(ii,jj) / ( dGL(ii,jj) + dIF(ii,jj) )
-                      if ( isfmask(ii,jj) .eq. kisf .and. rr .ge. 1.0-sqrt(1.0*(nD-kk+1)/nD) .and. rr .le. 1.0-sqrt(1.0*(nD-kk)/nD) ) then
-                        zzz = -ice_base_topography(ii,jj)
-                        aaa = dlon * dlat * dcos(lat(jj)*deg2rad) * RT**2 * deg2rad**2
-                        Tstar = lbd1*Sbox(kk-1) + lbd2 + lbd3*zzz - Tbox(kk-1)
-                        !g1  = gT * aaa
-                        g1 = Abox(kk,nD) * gT
-                        g2  = g1 * meltfac
-                        xbox = - g1 * Tstar / ( qqq + g1 - g2*lbd1*Sbox(kk-1) )
-                        TT = Tbox(kk-1) - xbox
-                        SS = Sbox(kk-1) - xbox*Sbox(kk-1)*meltfac
-                        Tbox(kk) =  Tbox(kk) + TT * aaa
-                        Sbox(kk) =  Sbox(kk) + SS * aaa
-                        Melt(ii,jj) = gT * meltfac * ( lbd1*SS + lbd2 + lbd3*zzz - TT )
-                        ! total melt (positive if melting) in Gt/yr
-                        mmm_tot_f = mmm_tot_f - Melt(ii,jj) * aaa * 1.d-9  * rhoi_SI / rhofw_SI
-                        mmm_avg_f = mmm_avg_f +               aaa * 1.d-9
+                      if ( isfmask(ii,jj) .eq. kisf ) then
+                        rr = dGL(ii,jj) / ( dGL(ii,jj) + dIF(ii,jj) )
+                        if ( rr .ge. 1.d0-sqrt(1.d0*(nD-kk+1)/nD) .and. rr .le. 1.d0-sqrt(1.d0*(nD-kk)/nD) ) then
+                          zzz = -ice_base_topography(ii,jj)
+                          aaa = dlon * dlat * dcos(lat(jj)*deg2rad) * RT**2 * deg2rad**2
+                          Tstar = lbd1*Sbox(kk-1) + lbd2 + lbd3*zzz - Tbox(kk-1)
+                          !g1  = gT * aaa
+                          g1 = Abox(kk,nD) * gT
+                          g2  = g1 * meltfac
+                          xbox = - g1 * Tstar / ( qqq + g1 - g2*lbd1*Sbox(kk-1) )
+                          TT = Tbox(kk-1) - xbox
+                          SS = Sbox(kk-1) - xbox*Sbox(kk-1)*meltfac
+                          Tbox(kk) =  Tbox(kk) + TT * aaa
+                          Sbox(kk) =  Sbox(kk) + SS * aaa
+                          Melt(ii,jj) = gT * meltfac * ( lbd1*SS + lbd2 + lbd3*zzz - TT )
+                          ! total melt (positive if melting) in Gt/yr
+                          mmm_tot_f = mmm_tot_f - Melt(ii,jj) * aaa * 1.d-9  * rhoi_SI / rhofw_SI
+                          mmm_avg_f = mmm_avg_f +               aaa * 1.d-9
+                        endif
                       endif
                     enddo
                     enddo
