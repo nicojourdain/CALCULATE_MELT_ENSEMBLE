@@ -1554,8 +1554,6 @@ DO kisf=2,mNisf
                           ! **NB** KEEP NB OF BOX IN ORDER (TO KEEP PICO PARAMETERS FOR THE NEXT ONE IF NB OF BOX DOES NOT CHANGE)
 
 
-              CC      = C_PICO        ! Circulation Parameter PICO
-              gT      = gammaT_PICO   ! Effective Exchange Velocity PICO
               alphap  = alpha_PICO    ! Thermal expansion coeff PICO
               beta    = beta_PICO     ! Salinity contraction coeff PICO
               rhostar = rhostar_PICO  ! EOS ref Density PICO
@@ -1577,6 +1575,11 @@ DO kisf=2,mNisf
               &        .or. kk_para .eq. 10 &
               &        .or. kk_para .eq. 11 ) ll_picop = .true.
 
+              if ( .not. ll_picop ) then  ! if ll_picop, keep values from original box model
+                CC      = C_PICO        ! Circulation Parameter PICO
+                gT      = gammaT_PICO   ! Effective Exchange Velocity PICO
+              endif
+
               kkp = 0
               if     (      kk_para .eq.  8 &
               &        .or. kk_para .eq. 10 ) then; TypeL = 'lazero'; kkp = 2
@@ -1588,10 +1591,10 @@ DO kisf=2,mNisf
               !- "Ambiant" present-day temperature and salinity
               zzz=front_bot_dep_max(kisf)   ! deepest entrence depth
               CALL find_z(mdepth,depth,zzz,kkinf,kksup,aainf,aasup)
-              T0 = aainf*T_pres(kkinf)+aasup*T_pres(kksup)
-              S0 = aainf*S_pres(kkinf)+aasup*S_pres(kksup)
               
               DO stun=1,Ntun  ! tuning iterations
+                T0 = aainf*T_pres(kkinf)+aasup*T_pres(kksup)
+                S0 = aainf*S_pres(kkinf)+aasup*S_pres(kksup)
                 !- Temerature and salinity in Box #1 :
                 Tstar = lbd1*S0 + lbd2 + lbd3*Zbox(1,nD) - T0  !NB: Tstar should be < 0
                 g1 = Abox(1,nD) * gT
