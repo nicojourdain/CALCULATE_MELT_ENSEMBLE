@@ -6,7 +6,8 @@ IMPLICIT NONE
  
 INTEGER :: fidA, status, dimID_mpara, dimID_mstat, imin, imax, jmin, jmax, mean_melt_pres_ID, total_melt_pres_ID, &
 &          dimID_Nisf, dimID_lat, dimID_lon, mmpara, mmstat, mNisf, mlat, mlon, index_tun_ID, index_WOA_ID, kisf, &
-&          index_CMIP_ID, index_para_ID, Kcoef_ID, mean_melt_futu_ID, total_melt_futu_ID, fidSTAT
+&          index_CMIP_ID, index_para_ID, Kcoef_ID, mean_melt_futu_ID, total_melt_futu_ID, fidSTAT,                &
+&          max_melt_pres_ID, min_melt_pres_ID
  
 CHARACTER(LEN=100) :: file_melt_isf, file_out
  
@@ -14,7 +15,8 @@ INTEGER*1,ALLOCATABLE,DIMENSION(:,:) :: index_tun, index_WOA, index_CMIP, index_
 &                                       index_tun_reg, index_WOA_reg, index_CMIP_reg, index_para_reg
  
 REAL*4,ALLOCATABLE,DIMENSION(:,:) :: Kcoef, mean_melt_futu, total_melt_futu, mean_melt_pres, total_melt_pres, &
-& Kcoef_reg, mean_melt_futu_reg, total_melt_futu_reg, mean_melt_pres_reg, total_melt_pres_reg
+& Kcoef_reg, mean_melt_futu_reg, total_melt_futu_reg, mean_melt_pres_reg, total_melt_pres_reg, min_melt_pres, &
+& max_melt_pres, min_melt_pres_reg, max_melt_pres_reg
 
 LOGICAL :: ex, ll_init
 
@@ -64,6 +66,8 @@ DO kisf=2,mNisf
     ALLOCATE(  total_melt_futu_reg(mNisf,mmstat)  ) 
     ALLOCATE(  mean_melt_pres_reg(mNisf,mmstat)  ) 
     ALLOCATE(  total_melt_pres_reg(mNisf,mmstat)  ) 
+    ALLOCATE(  max_melt_pres_reg(mNisf,mmstat)  ) 
+    ALLOCATE(  min_melt_pres_reg(mNisf,mmstat)  ) 
     
     if ( ll_init ) then
       ALLOCATE(  index_tun(mNisf,mmstat)  ) 
@@ -75,6 +79,8 @@ DO kisf=2,mNisf
       ALLOCATE(  total_melt_futu(mNisf,mmstat)  ) 
       ALLOCATE(  mean_melt_pres(mNisf,mmstat)  ) 
       ALLOCATE(  total_melt_pres(mNisf,mmstat)  ) 
+      ALLOCATE(  max_melt_pres(mNisf,mmstat)  ) 
+      ALLOCATE(  min_melt_pres(mNisf,mmstat)  ) 
       index_tun  (:,:) = 0
       index_WOA  (:,:) = 0
       index_CMIP (:,:) = 0
@@ -84,6 +90,8 @@ DO kisf=2,mNisf
       total_melt_futu(:,:) = NF90_FILL_FLOAT
       mean_melt_pres (:,:) = NF90_FILL_FLOAT
       total_melt_pres(:,:) = NF90_FILL_FLOAT
+      max_melt_pres(:,:) = NF90_FILL_FLOAT
+      min_melt_pres(:,:) = NF90_FILL_FLOAT
       ll_init = .false.
     endif
    
@@ -96,6 +104,8 @@ DO kisf=2,mNisf
     status = NF90_INQ_VARID(fidA,"total_melt_futu",total_melt_futu_ID); call erreur(status,.TRUE.,"inq_total_melt_futu_ID")
     status = NF90_INQ_VARID(fidA,"mean_melt_pres",mean_melt_pres_ID); call erreur(status,.TRUE.,"inq_mean_melt_pres_ID")
     status = NF90_INQ_VARID(fidA,"total_melt_pres",total_melt_pres_ID); call erreur(status,.TRUE.,"inq_total_melt_pres_ID")
+    status = NF90_INQ_VARID(fidA,"max_melt_pres",max_melt_pres_ID); call erreur(status,.TRUE.,"inq_max_melt_pres_ID")
+    status = NF90_INQ_VARID(fidA,"min_melt_pres",min_melt_pres_ID); call erreur(status,.TRUE.,"inq_min_melt_pres_ID")
      
     status = NF90_GET_VAR(fidA,index_tun_ID,index_tun_reg); call erreur(status,.TRUE.,"getvar_index_tun")
     status = NF90_GET_VAR(fidA,index_WOA_ID,index_WOA_reg); call erreur(status,.TRUE.,"getvar_index_WOA")
@@ -106,6 +116,8 @@ DO kisf=2,mNisf
     status = NF90_GET_VAR(fidA,total_melt_futu_ID,total_melt_futu_reg); call erreur(status,.TRUE.,"getvar_total_melt_futu")
     status = NF90_GET_VAR(fidA,mean_melt_pres_ID,mean_melt_pres_reg); call erreur(status,.TRUE.,"getvar_mean_melt_pres")
     status = NF90_GET_VAR(fidA,total_melt_pres_ID,total_melt_pres_reg); call erreur(status,.TRUE.,"getvar_total_melt_pres")
+    status = NF90_GET_VAR(fidA,max_melt_pres_ID,max_melt_pres_reg); call erreur(status,.TRUE.,"getvar_max_melt_pres")
+    status = NF90_GET_VAR(fidA,min_melt_pres_ID,min_melt_pres_reg); call erreur(status,.TRUE.,"getvar_min_melt_pres")
    
     write(*,*) '   Kcoef_reg in ', MINVAL(Kcoef_reg(kisf,:)), ' : ', MAXVAL(Kcoef_reg(kisf,:))
     write(*,*) '   mean_melt_pres_reg in ', MINVAL(mean_melt_pres_reg(kisf,:)), ' : ', MAXVAL(mean_melt_pres_reg(kisf,:))
@@ -124,12 +136,15 @@ DO kisf=2,mNisf
     total_melt_futu(kisf,:) = total_melt_futu_reg(kisf,:)
     mean_melt_pres (kisf,:) = mean_melt_pres_reg (kisf,:)
     total_melt_pres(kisf,:) = total_melt_pres_reg(kisf,:)
+    max_melt_pres(kisf,:) = max_melt_pres_reg(kisf,:)
+    min_melt_pres(kisf,:) = min_melt_pres_reg(kisf,:)
 
     write(*,*) '   Kcoef in ', MINVAL(Kcoef(kisf,:)), ' : ', MAXVAL(Kcoef(kisf,:))
     write(*,*) '   mean_melt_pres in ', MINVAL(mean_melt_pres(kisf,:)), ' : ', MAXVAL(mean_melt_pres(kisf,:))
   
     DEALLOCATE( index_tun_reg, index_WOA_reg, index_CMIP_reg, index_para_reg, Kcoef_reg )
     DEALLOCATE( mean_melt_futu_reg, total_melt_futu_reg, mean_melt_pres_reg, total_melt_pres_reg )
+    DEALLOCATE( max_melt_pres_reg, min_melt_pres_reg )
 
   endif
 
@@ -158,6 +173,8 @@ status = NF90_DEF_VAR(fidSTAT,"mean_melt_futu",NF90_FLOAT,(/dimID_Nisf,dimID_mst
 status = NF90_DEF_VAR(fidSTAT,"total_melt_futu",NF90_FLOAT,(/dimID_Nisf,dimID_mstat/),total_melt_futu_ID); call erreur(status,.TRUE.,"def_var_total_melt_futu_ID")
 status = NF90_DEF_VAR(fidSTAT,"mean_melt_pres",NF90_FLOAT,(/dimID_Nisf,dimID_mstat/),mean_melt_pres_ID); call erreur(status,.TRUE.,"def_var_mean_melt_pres_ID")
 status = NF90_DEF_VAR(fidSTAT,"total_melt_pres",NF90_FLOAT,(/dimID_Nisf,dimID_mstat/),total_melt_pres_ID); call erreur(status,.TRUE.,"def_var_total_melt_pres_ID")
+status = NF90_DEF_VAR(fidSTAT,"max_melt_pres",NF90_FLOAT,(/dimID_Nisf,dimID_mstat/),max_melt_pres_ID); call erreur(status,.TRUE.,"def_var_max_melt_pres_ID")
+status = NF90_DEF_VAR(fidSTAT,"min_melt_pres",NF90_FLOAT,(/dimID_Nisf,dimID_mstat/),min_melt_pres_ID); call erreur(status,.TRUE.,"def_var_min_melt_pres_ID")
  
 status = NF90_PUT_ATT(fidSTAT,index_tun_ID,"title","index_tun"); call erreur(status,.TRUE.,"put_att_index_tun_ID")
 status = NF90_PUT_ATT(fidSTAT,index_tun_ID,"long_name","index defining the sampling of Rignot (2013)'s range of uncertainty"); call erreur(status,.TRUE.,"put_att_index_tun_ID")
@@ -190,7 +207,15 @@ status = NF90_PUT_ATT(fidSTAT,mean_melt_pres_ID,"units","m/yr"); call erreur(sta
 status = NF90_PUT_ATT(fidSTAT,total_melt_pres_ID,"title","Present Melt Flux"); call erreur(status,.TRUE.,"put_att_total_melt_pres_ID")
 status = NF90_PUT_ATT(fidSTAT,total_melt_pres_ID,"long_name","Total present cavity melt flux"); call erreur(status,.TRUE.,"put_att_total_melt_pres_ID")
 status = NF90_PUT_ATT(fidSTAT,total_melt_pres_ID,"_FillValue",NF90_FILL_FLOAT); call erreur(status,.TRUE.,"put_att_total_melt_pres_ID")
-status = NF90_PUT_ATT(fidSTAT,total_melt_pres_ID,"units","Gt/yr"); call erreur(status,.TRUE.,"put_att_total_melt_pres_ID")
+status = NF90_PUT_ATT(fidSTAT,total_melt_pres_ID,"units","m/yr"); call erreur(status,.TRUE.,"put_att_total_melt_pres_ID")
+status = NF90_PUT_ATT(fidSTAT,max_melt_pres_ID,"title","Maximum Melt Rate"); call erreur(status,.TRUE.,"put_att_max_melt_pres_ID")
+status = NF90_PUT_ATT(fidSTAT,max_melt_pres_ID,"long_name","Present maximum melt rate over the cavity"); call erreur(status,.TRUE.,"put_att_max_melt_pres_ID")
+status = NF90_PUT_ATT(fidSTAT,max_melt_pres_ID,"_FillValue",NF90_FILL_FLOAT); call erreur(status,.TRUE.,"put_att_max_melt_pres_ID")
+status = NF90_PUT_ATT(fidSTAT,max_melt_pres_ID,"units","m/yr"); call erreur(status,.TRUE.,"put_att_max_melt_pres_ID")
+status = NF90_PUT_ATT(fidSTAT,min_melt_pres_ID,"title","Minimum Melt Rate"); call erreur(status,.TRUE.,"put_att_min_melt_pres_ID")
+status = NF90_PUT_ATT(fidSTAT,min_melt_pres_ID,"long_name","Present minimum melt rate over the cavity"); call erreur(status,.TRUE.,"put_att_min_melt_pres_ID")
+status = NF90_PUT_ATT(fidSTAT,min_melt_pres_ID,"_FillValue",NF90_FILL_FLOAT); call erreur(status,.TRUE.,"put_att_min_melt_pres_ID")
+status = NF90_PUT_ATT(fidSTAT,min_melt_pres_ID,"units","m/yr"); call erreur(status,.TRUE.,"put_att_min_melt_pres_ID")
  
 status = NF90_PUT_ATT(fidSTAT,NF90_GLOBAL,"history","Created using rebuild_melt_ensemble_statistics.f90"); call erreur(status,.TRUE.,"put_att_GLOBAL_ID")
  
@@ -205,6 +230,8 @@ status = NF90_PUT_VAR(fidSTAT,mean_melt_futu_ID,mean_melt_futu); call erreur(sta
 status = NF90_PUT_VAR(fidSTAT,total_melt_futu_ID,total_melt_futu); call erreur(status,.TRUE.,"var_total_melt_futu_ID")
 status = NF90_PUT_VAR(fidSTAT,mean_melt_pres_ID,mean_melt_pres); call erreur(status,.TRUE.,"var_mean_melt_pres_ID")
 status = NF90_PUT_VAR(fidSTAT,total_melt_pres_ID,total_melt_pres); call erreur(status,.TRUE.,"var_total_melt_pres_ID")
+status = NF90_PUT_VAR(fidSTAT,max_melt_pres_ID,max_melt_pres); call erreur(status,.TRUE.,"var_max_melt_pres_ID")
+status = NF90_PUT_VAR(fidSTAT,min_melt_pres_ID,min_melt_pres); call erreur(status,.TRUE.,"var_min_melt_pres_ID")
  
 status = NF90_CLOSE(fidSTAT); call erreur(status,.TRUE.,"final")
 

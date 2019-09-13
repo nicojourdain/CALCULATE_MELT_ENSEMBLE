@@ -30,7 +30,7 @@ REAL*4,ALLOCATABLE,DIMENSION(:,:,:) :: Futu_Melt, Pres_Melt, tmp_Futu_Melt, tmp_
 
 LOGICAL :: ll_check
  
-ID_isf = 10
+ID_isf = 21
 nn_tuning = 19
 
 101 FORMAT('melt_ensemble_',i3.3,'_',i1,'.nc')

@@ -72,7 +72,7 @@ ifort -o rebuild_melt_ensemble_patterns rebuild_melt_ensemble_patterns.o $NC_LIB
 
 ifort -c $NC_INC rebuild_melt_ensemble_statistics.f90
 ifort -o rebuild_melt_ensemble_statistics rebuild_melt_ensemble_statistics.o $NC_LIB
-./submit_short.sh rebuild_melt_ensemble_statistics 29 64
+./submit_short.sh rebuild_melt_ensemble_statistics 29 64   ## or execute directly
 
 ##################################################################################################
 #  NOW WE REDO THE JOB WITH AN ADDITIONAL CORRECTION ON THERMAL FORCING
