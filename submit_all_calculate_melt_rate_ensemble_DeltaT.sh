@@ -25,9 +25,9 @@ do
     ifort -qopenmp -c $NC_INC txgn_ID${ID}_${ii}.f90
     ifort -qopenmp -o txgn_ID${ID}_${ii} txgn_ID${ID}_${ii}.o $NC_LIB
     if [ $ID -eq 10 ]; then
-      ./submit_OMP12.sh gxtm_ID${ID}_${ii} $walltime 64
+      ./submit_OMP12.sh txgn_ID${ID}_${ii} $walltime 64
     else
-      ./submit_OMP.sh gxtm_ID${ID}_${ii} $walltime 64
+      ./submit_OMP.sh txgn_ID${ID}_${ii} $walltime 64
     fi
   done
   rm -f txgn_ID${ID}_${ii}.f90 txgn_ID${ID}_${ii}.o
