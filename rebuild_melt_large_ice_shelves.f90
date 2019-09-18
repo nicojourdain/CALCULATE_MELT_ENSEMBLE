@@ -97,18 +97,18 @@ DO kk_tuning=1,nn_tuning
   status = NF90_INQ_VARID(fidA,"Futu_Melt",Futu_Melt_ID); call erreur(status,.TRUE.,"inq_Futu_Melt_ID")
   status = NF90_INQ_VARID(fidA,"Pres_Melt",Pres_Melt_ID); call erreur(status,.TRUE.,"inq_Pres_Melt_ID")
    
-  status = NF90_GET_VAR(fidA,index_tun_ID,tmp_index_tun,(/ID_isf,1/),(/1,mmpara/)); call erreur(status,.TRUE.,"getvar_index_tun",(/ID_isf,1/),(/1,mmpara/))
-  status = NF90_GET_VAR(fidA,index_WOA_ID,tmp_index_WOA,(/ID_isf,1/),(/1,mmpara/)); call erreur(status,.TRUE.,"getvar_index_WOA",(/ID_isf,1/),(/1,mmpara/))
-  status = NF90_GET_VAR(fidA,index_CMIP_ID,tmp_index_CMIP,(/ID_isf,1/),(/1,mmpara/)); call erreur(status,.TRUE.,"getvar_index_CMIP",(/ID_isf,1/),(/1,mmpara/))
-  status = NF90_GET_VAR(fidA,index_para_ID,tmp_index_para,(/ID_isf,1/),(/1,mmpara/)); call erreur(status,.TRUE.,"getvar_index_para",(/ID_isf,1/),(/1,mmpara/))
-  !status = NF90_GET_VAR(fidA,Ccoef_ID,tmp_Ccoef,(/ID_isf,1/),(/1,mmpara/)); call erreur(status,.TRUE.,"getvar_Ccoef",(/ID_isf,1/),(/1,mmpara/))
-  status = NF90_GET_VAR(fidA,Kcoef_ID,tmp_Kcoef,(/ID_isf,1/),(/1,mmpara/)); call erreur(status,.TRUE.,"getvar_Kcoef",(/ID_isf,1/),(/1,mmpara/))
-  status = NF90_GET_VAR(fidA,mean_melt_futu_ID,tmp_mean_melt_futu,(/ID_isf,1/),(/1,mmpara/)); call erreur(status,.TRUE.,"getvar_mean_melt_futu",(/ID_isf,1/),(/1,mmpara/))
-  status = NF90_GET_VAR(fidA,total_melt_futu_ID,tmp_total_melt_futu,(/ID_isf,1/),(/1,mmpara/)); call erreur(status,.TRUE.,"getvar_total_melt_futu",(/ID_isf,1/),(/1,mmpara/))
-  status = NF90_GET_VAR(fidA,mean_melt_pres_ID,tmp_mean_melt_pres,(/ID_isf,1/),(/1,mmpara/)); call erreur(status,.TRUE.,"getvar_mean_melt_pres",(/ID_isf,1/),(/1,mmpara/))
-  status = NF90_GET_VAR(fidA,total_melt_pres_ID,tmp_total_melt_pres,(/ID_isf,1/),(/1,mmpara/)); call erreur(status,.TRUE.,"getvar_total_melt_pres",(/ID_isf,1/),(/1,mmpara/))
-  status = NF90_GET_VAR(fidA,min_melt_pres_ID,tmp_min_melt_pres,(/ID_isf,1/),(/1,mmpara/)); call erreur(status,.TRUE.,"getvar_min_melt_pres",(/ID_isf,1/),(/1,mmpara/))
-  status = NF90_GET_VAR(fidA,max_melt_pres_ID,tmp_max_melt_pres,(/ID_isf,1/),(/1,mmpara/)); call erreur(status,.TRUE.,"getvar_max_melt_pres",(/ID_isf,1/),(/1,mmpara/))
+  status = NF90_GET_VAR(fidA,index_tun_ID,tmp_index_tun,start=(/ID_isf,1/),count=(/1,mmpara/)); call erreur(status,.TRUE.,"getvar_index_tun")
+  status = NF90_GET_VAR(fidA,index_WOA_ID,tmp_index_WOA,start=(/ID_isf,1/),count=(/1,mmpara/)); call erreur(status,.TRUE.,"getvar_index_WOA")
+  status = NF90_GET_VAR(fidA,index_CMIP_ID,tmp_index_CMIP,start=(/ID_isf,1/),count=(/1,mmpara/)); call erreur(status,.TRUE.,"getvar_index_CMIP")
+  status = NF90_GET_VAR(fidA,index_para_ID,tmp_index_para,start=(/ID_isf,1/),count=(/1,mmpara/)); call erreur(status,.TRUE.,"getvar_index_para")
+  !status = NF90_GET_VAR(fidA,Ccoef_ID,tmp_Ccoef,start=(/ID_isf,1/),count=(/1,mmpara/)); call erreur(status,.TRUE.,"getvar_Ccoef")
+  status = NF90_GET_VAR(fidA,Kcoef_ID,tmp_Kcoef,start=(/ID_isf,1/),count=(/1,mmpara/)); call erreur(status,.TRUE.,"getvar_Kcoef")
+  status = NF90_GET_VAR(fidA,mean_melt_futu_ID,tmp_mean_melt_futu,start=(/ID_isf,1/),count=(/1,mmpara/)); call erreur(status,.TRUE.,"getvar_mean_melt_futu")
+  status = NF90_GET_VAR(fidA,total_melt_futu_ID,tmp_total_melt_futu,start=(/ID_isf,1/),count=(/1,mmpara/)); call erreur(status,.TRUE.,"getvar_total_melt_futu")
+  status = NF90_GET_VAR(fidA,mean_melt_pres_ID,tmp_mean_melt_pres,start=(/ID_isf,1/),count=(/1,mmpara/)); call erreur(status,.TRUE.,"getvar_mean_melt_pres")
+  status = NF90_GET_VAR(fidA,total_melt_pres_ID,tmp_total_melt_pres,start=(/ID_isf,1/),count=(/1,mmpara/)); call erreur(status,.TRUE.,"getvar_total_melt_pres")
+  status = NF90_GET_VAR(fidA,min_melt_pres_ID,tmp_min_melt_pres,start=(/ID_isf,1/),count=(/1,mmpara/)); call erreur(status,.TRUE.,"getvar_min_melt_pres")
+  status = NF90_GET_VAR(fidA,max_melt_pres_ID,tmp_max_melt_pres,start=(/ID_isf,1/),count=(/1,mmpara/)); call erreur(status,.TRUE.,"getvar_max_melt_pres")
   status = NF90_GET_VAR(fidA,Futu_Melt_ID,tmp_Futu_Melt); call erreur(status,.TRUE.,"getvar_Futu_Melt")
   status = NF90_GET_VAR(fidA,Pres_Melt_ID,tmp_Pres_Melt); call erreur(status,.TRUE.,"getvar_Pres_Melt")
 
@@ -183,6 +183,7 @@ DO kk_tuning=1,nn_tuning
       max_melt_pres   (ID_isf,kstat2) = tmp_max_melt_pres   (kstat)
     endif
   enddo 
+  write(*,*) 'kk_tuning, kstat2 = ', kk_tuning, kstat2
 
   if ( ll_check ) then
      do ii=1,mlon
